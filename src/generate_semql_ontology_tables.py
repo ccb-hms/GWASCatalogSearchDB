@@ -4,7 +4,7 @@ import urllib.request
 import bioregistry
 import pandas as pd
 
-__version__ = "0.5.0"
+__version__ = "0.5.1"
 
 ontologies = {
     "EFO": "https://s3.amazonaws.com/bbop-sqlite/efo.db",
@@ -103,8 +103,8 @@ def _get_entailed_edges_table(cursor):
 
 def _get_labels_table(cursor):
     # Get rdfs:label statements for ontology classes that are not deprecated
-    labels_query = "SELECT * FROM statements WHERE predicate='rdfs:label' AND subject IN " +\
-                   "(SELECT subject FROM statements WHERE predicate='rdf:type' AND object='owl:Class') " +\
+    labels_query = "SELECT * FROM statements WHERE predicate='rdfs:label' AND subject IN " + \
+                   "(SELECT subject FROM statements WHERE predicate='rdf:type' AND object='owl:Class') " + \
                    "AND subject NOT IN " + \
                    "(SELECT subject FROM statements WHERE predicate='owl:deprecated' AND value='true')"
     cursor.execute(labels_query)
@@ -149,18 +149,19 @@ def fix_identifiers(df, columns=()):
 
 
 def get_curie_id_for_term(term):
-    if "<" in term or "http" in term:
-        term = term.replace("<", "")
-        term = term.replace(">", "")
-        curie = bioregistry.curie_from_iri(term)
-        if curie is None:
-            if "http://dbpedia.org" in term:
-                return "DBR:" + term.rsplit('/', 1)[1]
-            else:
-                return term
-        return curie.upper()
-    else:
-        return term
+    if not pd.isna(term):
+        if "<" in term or "http" in term:
+            term = term.replace("<", "")
+            term = term.replace(">", "")
+            curie = bioregistry.curie_from_iri(term)
+            if curie is None:
+                if "http://dbpedia.org" in term:
+                    return "DBR:" + term.rsplit('/', 1)[1]
+                else:
+                    return term
+            return curie.upper()
+        else:
+            return term
 
 
 def save_table(df, output_filename, tables_output_folder):
