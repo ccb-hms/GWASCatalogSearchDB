@@ -1,7 +1,7 @@
 import sqlite3
 import pandas as pd
 from pathlib import Path
-from generate_semql_ontology_tables import get_semsql_tables_for_ontology
+from generate_semql_ontology_tables import get_semsql_tables_for_ontology, get_curie_id_for_term
 from generate_mapping_report import get_mapping_counts
 
 __version__ = "0.1.0"
@@ -30,7 +30,7 @@ def assemble_database(metadata_df, dataset_name):
 
     # Add metadata table to the database
     metadata_tbl_cols = "`STUDY.ACCESSION`,`DISEASE.TRAIT`,MAPPED_TRAIT,MAPPED_TRAIT_URI,STUDY," \
-                        "`GENOTYPING.TECHNOLOGY`,PUBMEDID,DATE"
+                        "`GENOTYPING.TECHNOLOGY`,PUBMEDID,DATE,MAPPED_TRAIT_CURIE"
     import_df_to_db(db_connection, data_frame=metadata_df, table_name=dataset_name + "_metadata", table_columns=metadata_tbl_cols)
 
     # Add SemanticSQL tables to the database
@@ -62,6 +62,8 @@ def import_df_to_db(connection, data_frame, table_name, table_columns):
     data_frame.to_sql(table_name, connection, if_exists="replace", index=False)
 
 
+# TODO there are multiple MAPPED TRAIT URIs for each GWAS Catalog record
 if __name__ == "__main__":
     gwascatalog_metadata = pd.read_csv("../resources/gwascatalog_metadata.tsv", sep="\t")
+    gwascatalog_metadata["MAPPED_TRAIT_CURIE"] = gwascatalog_metadata["MAPPED_TRAIT_URI"].apply(get_curie_id_for_term)
     assemble_database(metadata_df=gwascatalog_metadata, dataset_name="gwascatalog")
