@@ -79,6 +79,11 @@ if __name__ == '__main__':
                                         search_terms=['EFO:0009605', 'EFO:0005741'],
                                         include_subclasses=True,
                                         direct_subclasses_only=False)
+    output_file = "query_output.tsv"
+    df.to_csv(output_file, sep="\t", index=False)
+
     print(df)
+    print("Query results saved to: " + output_file)
+
     cursor.close()
     connection.close()
