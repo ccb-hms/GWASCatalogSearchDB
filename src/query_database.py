@@ -7,6 +7,7 @@ def resources_annotated_with_terms(db_cursor, search_terms, include_subclasses=T
     Retrieve resources annotated with the given search terms and (optionally) subclasses of that term, by specifying
     include_subclasses=True. The argument direct_subclasses_only dictates whether to include only direct subclasses or
     all inferred/indirect subclasses
+
     :param db_cursor:  cursor for database connection
     :param search_terms:  the ontology terms to search on
     :param include_subclasses:  include resources annotated with subclasses of the given search term,
@@ -14,6 +15,25 @@ def resources_annotated_with_terms(db_cursor, search_terms, include_subclasses=T
     :param direct_subclasses_only:  include only the direct subclasses of the given search term,
         otherwise all the resources annotated with inferred subclasses of the given term are returned
     :return: data frame containing IDs and traits of the GWAS Catalog records found to be annotated with the give term
+
+    An example full-formed SQL query for some example parameters is specified below.
+
+    Function parameters:
+    search_terms=['EFO:0009605','EFO:0005741']
+    include_subclasses=True
+    direct_subclasses_only=False
+
+    SQL query:
+    SELECT DISTINCT
+        m.`STUDY.ACCESSION`,
+        m.`DISEASE.TRAIT`,
+        m.MAPPED_TRAIT,
+        m.MAPPED_TRAIT_URI
+    FROM `gwascatalog_metadata` m
+        LEFT JOIN efo_entailed_edges ee ON (m.MAPPED_TRAIT_CURIE = ee.Subject)
+    WHERE (m.MAPPED_TRAIT_CURIE = 'EFO:0009605' OR ee.Object = 'EFO:0009605'
+        OR m.MAPPED_TRAIT_CURIE = 'EFO:0005741' OR ee.Object = 'EFO:0005741')
+
     """
     if include_subclasses:
         if direct_subclasses_only:
