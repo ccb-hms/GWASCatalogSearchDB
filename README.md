@@ -1,15 +1,15 @@
 # GWASCatalogSearchDB
 
-This resource aims to facilitate search for GWAS records in the GWAS Catalog database. This is achieved by combining the EFO ontology mappings given in the GWAS Catalog metadata with tabular representations of ontology relationships, such that users can search for GWAS Catalog records leveraging the EFO class hierarchy. 
+This repository provides a SQLite database designed to facilitate search for GWAS records in the [GWAS Catalog](https://www.ebi.ac.uk/gwas/) database—the NHGRI-EBI Catalog of human genome-wide association studies. This is achieved by combining the [EFO](https://www.ebi.ac.uk/efo/) ontology mappings specified in the GWAS Catalog metadata with tabular representations of ontology relationships—extracted from a [SemanticSQL](https://github.com/INCATools/semantic-sql) database representation of EFO—such that users can search for GWAS Catalog records by leveraging the EFO class hierarchy. 
 
 `src/assemble_database.py` generates the SQLite3 database `gwascatalog_search.db` that contains:
 - The original GWAS Catalog metadata table with all traits and associated study accession identifiers
 - Tables that specify EFO terms—their labels, identifiers and mapping counts—and the asserted and inferred hierarchical (SubclassOf) relationships between EFO terms (extracted from a [SemanticSQL](https://github.com/INCATools/semantic-sql) EFO build). 
 
-`src/query_database.py` contains a simple search function (described below) to query the generated database for GWAS Catalog records annotated/mapped to a user-specified set of EFO traits.
+`src/query_database.py` contains a simple search function (described below) to query the generated `gwascatalog_search.db` database for records annotated/mapped to a user-specified set of EFO traits.
 
 ```python
-# search for GWAS Catalog resources annotated with pancreas or infectious disease
+# search for GWAS Catalog records annotated with pancreas or infectious disease
 resources_annotated_with_terms(db_cursor, 
                                search_terms=['EFO:0009605', 'EFO:0005741'],
                                include_subclasses=True, 
@@ -22,3 +22,5 @@ The function parameters are:
         otherwise only resources explicitly annotated with those terms are returned
 - `direct_subclasses_only`— include only the direct subclasses of the given search terms,
         otherwise all the resources annotated with inferred subclasses of the given terms are returned
+
+Each search term must be an EFO term specified by its compact uniform resource identifier ([CURIE](https://www.w3.org/TR/curie/)). For example `EFO:0005741` which is the short form of [http://www.ebi.ac.uk/efo/EFO_0005741](http://www.ebi.ac.uk/efo/EFO_0005741).
