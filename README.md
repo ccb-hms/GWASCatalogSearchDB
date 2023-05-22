@@ -9,12 +9,13 @@ This resource aims to facilitate search for GWAS records in the GWAS Catalog dat
 `src/query_database.py` contains a simple search function (described below) to query the generated database for GWAS Catalog records annotated/mapped to a user-specified set of EFO traits.
 
 ```python
-def resources_annotated_with_terms(db_cursor, 
-                                   search_terms=['EFO:0009605', 'EFO:0005741'],  # pancreas and infectious disease
-                                   include_subclasses=True, 
-                                   direct_subclasses_only=False]
+# search for GWAS Catalog resources annotated with pancreas or infectious disease
+resources_annotated_with_terms(db_cursor, 
+                               search_terms=['EFO:0009605', 'EFO:0005741'],
+                               include_subclasses=True, 
+                               direct_subclasses_only=False]
 ```
-
+The function parameters are:
 - `db_cursor`— cursor for database connection
 - `search_terms`— a collection of ontology terms to search on
 - `include_subclasses`— include resources annotated with subclasses of the given search terms,
