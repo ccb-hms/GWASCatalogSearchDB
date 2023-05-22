@@ -2,7 +2,19 @@ import sqlite3
 import pandas as pd
 
 
-def resources_annotated_with_term(db_cursor, search_terms, include_subclasses=True, direct_subclasses_only=False):
+def resources_annotated_with_terms(db_cursor, search_terms, include_subclasses=True, direct_subclasses_only=False):
+    """
+    Retrieve resources annotated with the given search terms and (optionally) subclasses of that term, by specifying
+    include_subclasses=True. The argument direct_subclasses_only dictates whether to include only direct subclasses or
+    all inferred/indirect subclasses
+    :param db_cursor:  cursor for database connection
+    :param search_terms:  the ontology terms to search on
+    :param include_subclasses:  include resources annotated with subclasses of the given search term,
+        otherwise only resources explicitly annotated with that term are returned
+    :param direct_subclasses_only:  include only the direct subclasses of the given search term,
+        otherwise all the resources annotated with inferred subclasses of the given term are returned
+    :return: data frame containing IDs and traits of the GWAS Catalog records found to be annotated with the give term
+    """
     if include_subclasses:
         if direct_subclasses_only:
             ontology_table = "efo_edges"
@@ -43,10 +55,10 @@ if __name__ == '__main__':
     cursor = connection.cursor()
 
     # Search for GWASCatalog studies mapped to either EFO:0009605 (pancreas disease) or EFO:0005741 (infectious disease)
-    df = resources_annotated_with_term(db_cursor=cursor,
-                                       search_terms=['EFO:0009605', 'EFO:0005741'],
-                                       include_subclasses=True,
-                                       direct_subclasses_only=False)
+    df = resources_annotated_with_terms(db_cursor=cursor,
+                                        search_terms=['EFO:0009605', 'EFO:0005741'],
+                                        include_subclasses=True,
+                                        direct_subclasses_only=False)
     print(df)
     cursor.close()
     connection.close()
