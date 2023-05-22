@@ -6,7 +6,7 @@ This repository provides a SQLite database designed to facilitate search for GWA
 - The original GWAS Catalog metadata table with all traits and associated study accession identifiers
 - Tables that specify EFO terms—their labels, identifiers and mapping counts—and the asserted and inferred hierarchical (SubclassOf) relationships between EFO terms (extracted from a [SemanticSQL](https://github.com/INCATools/semantic-sql) EFO build). 
 
-`src/query_database.py` contains a simple search function (described below) to query the generated `gwascatalog_search.db` database for records annotated/mapped to a user-specified set of EFO traits.
+`src/query_database.py` contains a simple search function (described below) to query the `gwascatalog_search.db` database for records annotated/mapped to a user-specified set of EFO traits.
 
 ```python
 # search for GWAS Catalog records annotated with pancreas or infectious disease
