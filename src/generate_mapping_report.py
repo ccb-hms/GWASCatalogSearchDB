@@ -1,7 +1,7 @@
 import pandas as pd
 from owlready2 import *
 
-__version__ = "0.5.0"
+__version__ = "0.5.1"
 
 BASE_IRI = "https://computationalbiomed.hms.harvard.edu/ontology/"
 
@@ -32,7 +32,6 @@ def get_mapping_counts_to_ontologies(mappings_df, ontologies_df,
         ontology_mappings_df = mappings_df[mappings_df[ONTOLOGY_COL] == ontology_name]
         ontology_mappings_counts = get_mapping_counts(mappings_df=ontology_mappings_df,
                                                       ontology_iri=ontology_iri,
-                                                      ontology_name=ontology_name,
                                                       source_term_id_col=source_term_id_col,
                                                       source_term_secondary_id_col=source_term_secondary_id_col,
                                                       source_term_col=source_term_col,
@@ -45,7 +44,7 @@ def get_mapping_counts_to_ontologies(mappings_df, ontologies_df,
     return all_mappings
 
 
-def get_mapping_counts(mappings_df, ontology_iri, ontology_name,
+def get_mapping_counts(mappings_df, ontology_iri,
                        source_term_id_col=SOURCE_TERM_ID_COL,
                        source_term_secondary_id_col=SOURCE_TERM_2ND_ID_COL,
                        source_term_col=SOURCE_TERM_COL,
@@ -53,11 +52,11 @@ def get_mapping_counts(mappings_df, ontology_iri, ontology_name,
                        save_ontology=SAVE_ONTOLOGY,
                        use_reasoning=USE_REASONING,
                        ontology_term_blocklist=TERM_BLOCKLIST):
-    print(f"Computing counts of direct and inherited mappings to {ontology_name}...")
+    print("Computing counts of direct and inherited ontology mappings...")
     mappings_df.columns = mappings_df.columns.str.replace(' ', '')  # remove spaces from column names
     start = time.time()
     ontology = get_ontology(ontology_iri).load()
-    _create_instances(ontology, ontology_name, mappings_df, save_ontology=save_ontology, use_reasoning=use_reasoning,
+    _create_instances(ontology, mappings_df, save_ontology=save_ontology, use_reasoning=use_reasoning,
                       source_term_id_col=source_term_id_col, source_term_secondary_id_col=source_term_secondary_id_col,
                       source_term_col=source_term_col, mapped_term_iri_col=mapped_term_iri_col)
     output = []
@@ -77,7 +76,7 @@ def get_mapping_counts(mappings_df, ontology_iri, ontology_name,
     return output_df
 
 
-def _create_instances(ontology, ontology_name, mappings_df, source_term_id_col, source_term_secondary_id_col,
+def _create_instances(ontology, mappings_df, source_term_id_col, source_term_secondary_id_col,
                       source_term_col, mapped_term_iri_col, save_ontology, use_reasoning):
     with ontology:
         if source_term_secondary_id_col != '':
@@ -111,7 +110,7 @@ def _create_instances(ontology, ontology_name, mappings_df, source_term_id_col, 
                 if source_term_secondary_id_col != '':
                     new_instance.resource_secondary_id.append(source_term_secondary_id)
     if save_ontology:
-        ontology.save(ontology_name + "_mappings.owl")
+        ontology.save("ontology_mappings.owl")
 
     if use_reasoning:
         print("...reasoning over ontology...")
