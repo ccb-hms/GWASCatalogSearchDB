@@ -1,7 +1,7 @@
 import pandas as pd
 from owlready2 import *
 
-__version__ = "0.5.1"
+__version__ = "0.6.0"
 
 BASE_IRI = "https://computationalbiomed.hms.harvard.edu/ontology/"
 
@@ -63,14 +63,16 @@ def get_mapping_counts(mappings_df, ontology_iri,
     for term in ontology.classes():
         if not any([iri_bit in term.iri for iri_bit in ontology_term_blocklist]):
             term_df = mappings_df[mappings_df[mapped_term_iri_col] == term.iri]
-            direct_mappings = term_df.shape[0]
+            direct_mappings = set(term_df[source_term_id_col].unique())
+            direct_mappings_count = len(direct_mappings)
             instances = term.instances()
-            local_instances = []
+            inherited_mappings = set()
             for instance in instances:
                 if BASE_IRI in instance.iri:
-                    local_instances.append(instance)
-            inferred_mappings = len(local_instances)
-            output.append((term.iri, direct_mappings, inferred_mappings))
+                    inherited_mappings.add(instance.resource_id[0])
+            inherited_mappings = inherited_mappings.difference(direct_mappings)
+            inherited_mappings_count = len(inherited_mappings)
+            output.append((term.iri, direct_mappings_count, inherited_mappings_count))
     output_df = pd.DataFrame(data=output, columns=['IRI', 'Direct', 'Inherited'])
     print(f"...done ({time.time() - start:.1f} seconds)")
     return output_df
