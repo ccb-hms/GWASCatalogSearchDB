@@ -4,28 +4,24 @@ import urllib.request
 import bioregistry
 import pandas as pd
 
-__version__ = "0.5.1"
-
-ontologies = {
-    "EFO": "https://s3.amazonaws.com/bbop-sqlite/efo.db",
-    "FOODON": "https://s3.amazonaws.com/bbop-sqlite/foodon.db",
-    "NCIT": "https://s3.amazonaws.com/bbop-sqlite/ncit.db"
-}
+__version__ = "0.6.0"
 
 SUBJECT_COL = "Subject"
 OBJECT_COL = "Object"
 IRI_COL = "IRI"
 ONTOLOGY_COL = "Ontology"
+IRI_PRIORITY_LIST = ["obofoundry", "default", "bioregistry"]
 
 
-def get_semsql_tables_for_ontologies(tables_output_folder='../ontology-tables',
+def get_semsql_tables_for_ontologies(ontologies,
+                                     tables_output_folder='../ontology-tables',
                                      db_output_folder="../ontology-db",
                                      save_tables=False):
     all_edges = all_entailed_edges = all_labels = all_dbxrefs = pd.DataFrame()
     for ontology in ontologies:
         edges, entailed_edges, labels, dbxrefs, version = \
-            get_semsql_tables_for_ontology(ontology_name=ontology,
-                                           ontology_url=ontologies[ontology],
+            get_semsql_tables_for_ontology(ontology_url="https://s3.amazonaws.com/bbop-sqlite/" + ontology + ".db",
+                                           ontology_name=ontology,
                                            db_output_folder=db_output_folder,
                                            save_tables=False)
         labels[ONTOLOGY_COL] = edges[ONTOLOGY_COL] = entailed_edges[ONTOLOGY_COL] = dbxrefs[ONTOLOGY_COL] = ontology
@@ -103,8 +99,8 @@ def _get_entailed_edges_table(cursor):
 
 def _get_labels_table(cursor):
     # Get rdfs:label statements for ontology classes that are not deprecated
-    labels_query = "SELECT * FROM statements WHERE predicate='rdfs:label' AND subject IN " + \
-                   "(SELECT subject FROM statements WHERE predicate='rdf:type' AND object='owl:Class') " + \
+    labels_query = "SELECT * FROM statements WHERE predicate='rdfs:label' AND subject IN " +\
+                   "(SELECT subject FROM statements WHERE predicate='rdf:type' AND object='owl:Class') " +\
                    "AND subject NOT IN " + \
                    "(SELECT subject FROM statements WHERE predicate='owl:deprecated' AND value='true')"
     cursor.execute(labels_query)
@@ -136,10 +132,10 @@ def _get_db_cross_references_table(cursor):
 
 def get_iri(curie):
     if "DBR" in curie:
-        curie = curie.split(":")[1]
-        return "http://dbpedia.org/resource/" + curie
+        term_id = curie.split(":")[1]
+        return "http://dbpedia.org/resource/" + term_id
     else:
-        return bioregistry.get_iri(curie)
+        return bioregistry.get_iri(curie, priority=IRI_PRIORITY_LIST)
 
 
 def fix_identifiers(df, columns=()):
@@ -160,8 +156,7 @@ def get_curie_id_for_term(term):
                 else:
                     return term
             return curie.upper()
-        else:
-            return term
+    return term
 
 
 def save_table(df, output_filename, tables_output_folder):
@@ -172,4 +167,4 @@ def save_table(df, output_filename, tables_output_folder):
 
 
 if __name__ == "__main__":
-    get_semsql_tables_for_ontologies(save_tables=True)
+    get_semsql_tables_for_ontologies(ontologies=["EFO", "FOODON", "NCIT"], save_tables=True)
