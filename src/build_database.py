@@ -8,7 +8,7 @@ from metapub import PubMedFetcher
 from generate_ontology_tables import get_semsql_tables_for_ontology
 from generate_mapping_report import get_mapping_counts
 
-__version__ = "1.0.3"
+__version__ = "1.1.0"
 
 text2term_mapping_source_term_col = "SourceTerm"
 text2term_mapping_source_term_id_col = "SourceTermID"
