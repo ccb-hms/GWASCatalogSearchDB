@@ -2,9 +2,16 @@
 
 This repository provides a SQLite database designed to facilitate search for GWAS records in the [GWAS Catalog](https://www.ebi.ac.uk/gwas/) database—the NHGRI-EBI Catalog of human genome-wide association studies. This is achieved by combining the [EFO](https://www.ebi.ac.uk/efo/) ontology mappings specified in the GWAS Catalog metadata with tabular representations of ontology relationships—extracted from a [SemanticSQL](https://github.com/INCATools/semantic-sql) database representation of EFO—such that users can search for GWAS Catalog records by leveraging the EFO class hierarchy. 
 
-`src/assemble_database.py` generates the SQLite3 database `gwascatalog_search.db` that contains:
-- The original GWAS Catalog metadata table with all traits and associated study accession identifiers
-- Tables that specify EFO terms—their labels, identifiers and mapping counts—and the asserted and inferred hierarchical (SubclassOf) relationships between EFO terms (extracted from a [SemanticSQL](https://github.com/INCATools/semantic-sql) EFO build). 
+`src/assemble_database.py` generates the SQLite3 database `gwascatalog_search.db` containing the tables depicted and described below.
+
+![](resources/gwascatalog_search_tables.png)
+
+- `gwascatalog_metadata` contains the original metadata table with all traits and associated study accession identifiers.
+- `gwascatalog_references` contains details obtained from PubMed about the articles in the `PUBMEDID` column of the `gwascatalog_metadata` table. 
+- `efo_labels` contains the terms in EFO (`Subject` column), their labels (`Object` column), IRIs, and the counts of how many rows/records in the metadata are directly mapped to those terms (`Direct` column), or indirectly mapped to those terms via a more specific term in the hierarchy (`Inherited` column).
+- `efo_edges` and `efo_entailed_edges` contain, respectively, the asserted and entailed hierarchical (SubclassOf) relationships between EFO terms (extracted from a [SemanticSQL](https://github.com/INCATools/semantic-sql) EFO build).
+- `efo_dbxrefs` contains database crossreferences between EFO terms and other ontologies or vocabularies, such as MeddRA, OMIM, MeSH, etc. 
+
 
 `src/query_database.py` contains a search function (described below) to query the `gwascatalog_search.db` database for records annotated/mapped to a user-specified set of EFO traits.
 
@@ -23,4 +30,4 @@ The function parameters are:
 - `direct_subclasses_only`— include only the direct subclasses of the given search terms,
         otherwise all the resources annotated with inferred subclasses of the given terms are returned
 
-Each search term must be an EFO term specified by its compact uniform resource identifier ([CURIE](https://www.w3.org/TR/curie/)). For example `EFO:0005741` which is the short form of [http://www.ebi.ac.uk/efo/EFO_0005741](http://www.ebi.ac.uk/efo/EFO_0005741).
+Each search term must be an EFO term specified by its compact uniform resource identifier ([CURIE](https://www.w3.org/TR/curie/)). For example `EFO:0005741` is the short form of [http://www.ebi.ac.uk/efo/EFO_0005741](http://www.ebi.ac.uk/efo/EFO_0005741).
