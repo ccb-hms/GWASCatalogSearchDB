@@ -1,7 +1,7 @@
 import pandas as pd
 from owlready2 import *
 
-__version__ = "0.6.0"
+__version__ = "0.7.2"
 
 BASE_IRI = "https://computationalbiomed.hms.harvard.edu/ontology/"
 
@@ -52,10 +52,10 @@ def get_mapping_counts(mappings_df, ontology_iri,
                        save_ontology=SAVE_ONTOLOGY,
                        use_reasoning=USE_REASONING,
                        ontology_term_blocklist=TERM_BLOCKLIST):
-    print("Computing counts of direct and inherited ontology mappings...")
-    mappings_df.columns = mappings_df.columns.str.replace(' ', '')  # remove spaces from column names
+    print(f"Computing mapping counts for {ontology_iri}...")
     start = time.time()
-    ontology = get_ontology(ontology_iri).load()
+    ontology_world = World()
+    ontology = ontology_world.get_ontology(ontology_iri).load()
     _create_instances(ontology, mappings_df, save_ontology=save_ontology, use_reasoning=use_reasoning,
                       source_term_id_col=source_term_id_col, source_term_secondary_id_col=source_term_secondary_id_col,
                       source_term_col=source_term_col, mapped_term_iri_col=mapped_term_iri_col)
@@ -69,12 +69,16 @@ def get_mapping_counts(mappings_df, ontology_iri,
             inherited_mappings = set()
             for instance in instances:
                 if BASE_IRI in instance.iri:
-                    inherited_mappings.add(instance.resource_id[0])
+                    if len(instance.resource_id) == 0:
+                        print(f"Empty Resource ID for {instance.iri} — mapped to {term}")
+                    else:
+                        inherited_mappings.add(instance.resource_id[0])
             inherited_mappings = inherited_mappings.difference(direct_mappings)
             inherited_mappings_count = len(inherited_mappings)
             output.append((term.iri, direct_mappings_count, inherited_mappings_count))
     output_df = pd.DataFrame(data=output, columns=['IRI', 'Direct', 'Inherited'])
     print(f"...done ({time.time() - start:.1f} seconds)")
+    ontology_world.close()
     return output_df
 
 
@@ -87,35 +91,42 @@ def _create_instances(ontology, mappings_df, source_term_id_col, source_term_sec
 
         class resource_id(Thing >> str):
             pass
-    for index, row in mappings_df.iterrows():
-        source_term = row[source_term_col]
-        source_term_id = row[source_term_id_col]
-        ontology_term_iri = row[mapped_term_iri_col]
-        ontology_term = IRIS[ontology_term_iri]
 
-        if ontology_term is not None:
-            if source_term_secondary_id_col != '':
-                source_term_secondary_id = row[source_term_secondary_id_col]
-                new_instance_iri = BASE_IRI + source_term_secondary_id + "-" + source_term_id
-            else:
-                new_instance_iri = BASE_IRI + source_term_id
-
-            if IRIS[new_instance_iri] is not None:
-                labels = IRIS[new_instance_iri].label
-                if source_term not in labels:
-                    labels.append(source_term)
-            else:
-                # create OWL instance to represent mapping
-                new_instance = ontology_term(label=source_term, iri=new_instance_iri)
-                new_instance.resource_id.append(source_term_id)
-
+        for index, row in mappings_df.iterrows():
+            source_term = row[source_term_col]
+            source_term_id = row[source_term_id_col]
+            ontology_term_iri = row[mapped_term_iri_col]
+            ontology_term = ontology.world[ontology_term_iri]
+            if ontology_term is not None:
                 if source_term_secondary_id_col != '':
-                    new_instance.resource_secondary_id.append(source_term_secondary_id)
-    if save_ontology:
-        ontology.save("ontology_mappings.owl")
+                    source_term_secondary_id = row[source_term_secondary_id_col]
+                    new_instance_iri = BASE_IRI + source_term_secondary_id + "-" + source_term_id
+                else:
+                    if "http://" in source_term_id or "https://" in source_term_id:
+                        new_instance_iri = source_term_id
+                    else:
+                        new_instance_iri = BASE_IRI + source_term_id
 
-    if use_reasoning:
-        print("...reasoning over ontology...")
-        owlready2.reasoning.JAVA_MEMORY = 20000  # TODO: even so the HermiT reasoner performs poorly on EFO+mappings
-        with ontology:
-            sync_reasoner()
+                if ontology.world[new_instance_iri] is not None:
+                    labels = ontology.world[new_instance_iri].label
+                    if source_term not in labels:
+                        labels.append(source_term)
+                else:
+                    # create OWL instance to represent mapping
+                    new_instance = ontology_term(label=source_term, iri=new_instance_iri)
+                    new_instance.resource_id.append(source_term_id)
+
+                    if source_term_secondary_id_col != '':
+                        new_instance.resource_secondary_id.append(source_term_secondary_id)
+            else:
+                print("Null ontology term for IRI " + str(ontology_term_iri))
+        if save_ontology:
+            output_file = "mappings/" + ontology.name + "_mappings.owl"
+            os.makedirs(os.path.dirname(output_file), exist_ok=True)
+            ontology.save(output_file)
+
+        if use_reasoning:
+            print("...reasoning over ontology...")
+            owlready2.reasoning.JAVA_MEMORY = 20000  # TODO: even so the HermiT reasoner performs poorly on EFO+mappings
+            with ontology:
+                sync_reasoner()
