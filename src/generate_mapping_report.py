@@ -1,7 +1,7 @@
 import pandas as pd
 from owlready2 import *
 
-__version__ = "0.7.2"
+__version__ = "0.8.0"
 
 BASE_IRI = "https://computationalbiomed.hms.harvard.edu/ontology/"
 
@@ -95,31 +95,11 @@ def _create_instances(ontology, mappings_df, source_term_id_col, source_term_sec
         for index, row in mappings_df.iterrows():
             source_term = row[source_term_col]
             source_term_id = row[source_term_id_col]
+            source_term_secondary_id = ""
             ontology_term_iri = row[mapped_term_iri_col]
-            ontology_term = ontology.world[ontology_term_iri]
-            if ontology_term is not None:
-                if source_term_secondary_id_col != '':
-                    source_term_secondary_id = row[source_term_secondary_id_col]
-                    new_instance_iri = BASE_IRI + source_term_secondary_id + "-" + source_term_id
-                else:
-                    if "http://" in source_term_id or "https://" in source_term_id:
-                        new_instance_iri = source_term_id
-                    else:
-                        new_instance_iri = BASE_IRI + source_term_id
-
-                if ontology.world[new_instance_iri] is not None:
-                    labels = ontology.world[new_instance_iri].label
-                    if source_term not in labels:
-                        labels.append(source_term)
-                else:
-                    # create OWL instance to represent mapping
-                    new_instance = ontology_term(label=source_term, iri=new_instance_iri)
-                    new_instance.resource_id.append(source_term_id)
-
-                    if source_term_secondary_id_col != '':
-                        new_instance.resource_secondary_id.append(source_term_secondary_id)
-            else:
-                print("Null ontology term for IRI " + str(ontology_term_iri))
+            if source_term_secondary_id_col != '':
+                source_term_secondary_id = row[source_term_secondary_id_col]
+            _create_instance(ontology, ontology_term_iri, source_term, source_term_id, source_term_secondary_id)
         if save_ontology:
             output_file = "mappings/" + ontology.name + "_mappings.owl"
             os.makedirs(os.path.dirname(output_file), exist_ok=True)
@@ -130,3 +110,34 @@ def _create_instances(ontology, mappings_df, source_term_id_col, source_term_sec
             owlready2.reasoning.JAVA_MEMORY = 20000  # TODO: even so the HermiT reasoner performs poorly on EFO+mappings
             with ontology:
                 sync_reasoner()
+
+
+def _create_instance(ontology, ontology_term_iri, source_term, source_term_id, source_term_secondary_id):
+    ontology_term = ontology.world[ontology_term_iri]
+    if ontology_term is not None:
+        if source_term_secondary_id != '':
+            new_instance_iri = BASE_IRI + source_term_secondary_id + "-" + source_term_id
+        else:
+            if "http://" in source_term_id or "https://" in source_term_id:
+                new_instance_iri = source_term_id
+            else:
+                new_instance_iri = BASE_IRI + source_term_id
+
+        if ontology.world[new_instance_iri] is not None:
+            labels = ontology.world[new_instance_iri].label
+            if source_term not in labels:
+                labels.append(source_term)
+        else:
+            # create OWL instance to represent mapping
+            new_instance = ontology_term(label=source_term, iri=new_instance_iri)
+            new_instance.resource_id.append(source_term_id)
+
+            if source_term_secondary_id != '':
+                new_instance.resource_secondary_id.append(source_term_secondary_id)
+    else:
+        if not pd.isna(ontology_term_iri) and "," in ontology_term_iri:
+            print(f"...warning: Multiple ontology term mappings for '{source_term}' ({source_term_id}): {ontology_term_iri}")
+            terms = ontology_term_iri.split(",")
+            for subterm in terms:
+                subterm = subterm.strip()
+                _create_instance(ontology, subterm, source_term, source_term_id, source_term_secondary_id)
