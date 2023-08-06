@@ -25,14 +25,14 @@ def resources_annotated_with_terms(db_cursor, search_terms, include_subclasses=T
 
     SQL query:
     SELECT DISTINCT
-        m.SourceTermID,
-        m.SourceTerm,
-        m.MappedTermLabel,
-        m.MappedTermIRI
-    FROM gwascatalog_mappings m
-        LEFT JOIN efo_entailed_edges ee ON (m.MappedTermCURIE = ee.Subject)
-    WHERE (m.MappedTermCURIE = 'EFO:0009605' OR ee.Object = 'EFO:0009605'
-        OR m.MappedTermCURIE = 'EFO:0005741' OR ee.Object = 'EFO:0005741')
+        m.`STUDY.ACCESSION`,
+        m.`DISEASE.TRAIT`,
+        m.MAPPED_TRAIT,
+        m.MAPPED_TRAIT_URI
+    FROM `gwascatalog_metadata` m
+        LEFT JOIN efo_entailed_edges ee ON (m.MAPPED_TRAIT_CURIE = ee.Subject)
+    WHERE (m.MAPPED_TRAIT_CURIE = 'EFO:0009605' OR ee.Object = 'EFO:0009605'
+        OR m.MAPPED_TRAIT_CURIE = 'EFO:0005741' OR ee.Object = 'EFO:0005741')
 
     """
     if include_subclasses:
@@ -44,20 +44,20 @@ def resources_annotated_with_terms(db_cursor, search_terms, include_subclasses=T
         ontology_table = "efo_edges"
 
     query = '''SELECT DISTINCT 
-                    m.SourceTermID,
-                    m.SourceTerm,
-                    m.MappedTermLabel,
-                    m.MappedTermIRI
-                FROM gwascatalog_mappings m
-                LEFT JOIN ''' + ontology_table + ''' ee ON (m.MappedTermCURIE = ee.Subject)'''
+                    m.`STUDY.ACCESSION`,
+                    m.`DISEASE.TRAIT`,
+                    m.MAPPED_TRAIT,
+                    m.MAPPED_TRAIT_URI
+                FROM `gwascatalog_metadata` m
+                LEFT JOIN ''' + ontology_table + ''' ee ON (m.MAPPED_TRAIT_CURIE = ee.Subject)'''
 
     index = 0
     where_clause = "\nWHERE ("
     for term in search_terms:
         if index == 0:
-            where_clause += "m.MappedTermCURIE = \'" + term + "\'"
+            where_clause += "m.MAPPED_TRAIT_CURIE = \'" + term + "\'"
         else:
-            where_clause += " OR m.MappedTermCURIE = \'" + term + "\'"
+            where_clause += " OR m.MAPPED_TRAIT_CURIE = \'" + term + "\'"
         if include_subclasses:
             where_clause += " OR ee.Object = \'" + term + "\'"
         index += 1
