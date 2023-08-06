@@ -4,23 +4,37 @@ import time
 import pandas as pd
 from generate_ontology_tables import get_curie_id_for_term
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 
 def get_text2term_mappings_table(metadata_df):
-    ontology_mappings_df = pd.DataFrame()
-    ontology_mappings_df["SourceTermID"] = metadata_df["STUDY.ACCESSION"]
-    ontology_mappings_df["SourceTerm"] = metadata_df["DISEASE.TRAIT"]
-    ontology_mappings_df["MappedTermLabel"] = metadata_df["MAPPED_TRAIT"]
-    ontology_mappings_df["MappedTermCURIE"] = metadata_df["MAPPED_TRAIT_URI"].apply(get_curie_id_for_term)
-    ontology_mappings_df["MappedTermIRI"] = metadata_df["MAPPED_TRAIT_URI"]
-    ontology_mappings_df.to_csv("../resources/gwascatalog_mappings.tsv", sep="\t", index=False)
-    return ontology_mappings_df
+    mappings_list = []
+    for _, row in metadata_df.iterrows():
+        # Split the comma-separated URIs in "MAPPED_TRAIT_URI" into separate rows
+        mapped_trait_uri = row['MAPPED_TRAIT_URI']
+        if mapped_trait_uri != "" and not pd.isna(mapped_trait_uri):
+            if "," in mapped_trait_uri:
+                iris_list = mapped_trait_uri.split(',')
+            else:
+                iris_list = [mapped_trait_uri]
+            # Add a new row to the "mappings_df" for each IRI in the list
+            for iri in iris_list:
+                iri = iri.strip()
+                mappings = {'STUDY.ACCESSION': row['STUDY.ACCESSION'],
+                            'DISEASE.TRAIT': row['DISEASE.TRAIT'],
+                            'MAPPED_TRAIT': row['MAPPED_TRAIT'],
+                            'MAPPED_TRAIT_URI': iri,
+                            'MAPPED_TRAIT_CURIE': get_curie_id_for_term(iri)}
+                mappings_list.append(mappings)
+    mappings_df = pd.DataFrame(mappings_list)
+    mappings_df.to_csv("../resources/gwascatalog_mappings.tsv", sep="\t", index=False)
+    return mappings_df
 
 
 if __name__ == "__main__":
     gwascatalog_metadata = pd.read_csv("../resources/gwascatalog_metadata.tsv", sep="\t")
     gwascatalog_metadata = gwascatalog_metadata.drop(gwascatalog_metadata.columns[0], axis=1)
+    gwascatalog_metadata["MAPPED_TRAIT_CURIE"] = gwascatalog_metadata["MAPPED_TRAIT_URI"].apply(get_curie_id_for_term)
 
     # Generate and save a text2term-formatted table of ontology mappings in the GWAS Catalog metadata table
     ontology_mappings = get_text2term_mappings_table(gwascatalog_metadata)
@@ -39,5 +53,8 @@ if __name__ == "__main__":
                    metadata_df=gwascatalog_metadata,
                    ontology_mappings_df=ontology_mappings,
                    ontology_name="EFO",
+                   resource_col="DISEASE.TRAIT",
+                   resource_id_col="STUDY.ACCESSION",
+                   ontology_term_iri_col="MAPPED_TRAIT_URI",
                    pmid_col="PUBMEDID")
     print(f"Finished building database ({time.time() - start:.1f} seconds)")
