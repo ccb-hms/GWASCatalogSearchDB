@@ -9,7 +9,7 @@ from metapub import PubMedFetcher
 from generate_ontology_tables import get_semsql_tables_for_ontology
 from generate_mapping_report import get_mapping_counts
 
-__version__ = "1.2.0"
+__version__ = "1.2.1"
 
 text2term_mapping_source_term_col = "SourceTerm"
 text2term_mapping_source_term_id_col = "SourceTermID"
@@ -55,8 +55,9 @@ def build_database(metadata_df, dataset_name, ontology_name,
     print(f"...done ({time.time() - start:.1f} seconds)")
     import_df_to_db(db_connection, data_frame=edges_df, table_name=ontology_name + "_edges")
     import_df_to_db(db_connection, data_frame=entailed_edges_df, table_name=ontology_name + "_entailed_edges")
-    import_df_to_db(db_connection, data_frame=dbxrefs_df, table_name=ontology_name + "_dbxrefs")
     import_df_to_db(db_connection, data_frame=synonyms_df, table_name=ontology_name + "_synonyms")
+    # TODO perhaps make inclusion of database cross-references optional
+    # import_df_to_db(db_connection, data_frame=dbxrefs_df, table_name=ontology_name + "_dbxrefs")
 
     # Get details (title, abstract, journal) from PubMed about references in the specified PMID column
     references_df = get_pubmed_details(metadata_df=metadata_df, dataset_name=dataset_name, pmid_col=pmid_col)
@@ -134,7 +135,7 @@ def get_pubmed_details(metadata_df, dataset_name, pmid_col):
     articles = []
     for pmid in tqdm(pmids):
         articles.append(get_pubmed_article_details(fetch, pmid))
-    references_df = pd.DataFrame(articles, columns=['PMID', 'Journal', 'Title', 'Abstract', 'Year', 'URL'])
+    references_df = pd.DataFrame(articles, columns=[pmid_col, 'Journal', 'Title', 'Abstract', 'Year', 'URL'])
     references_df.to_csv("../resources/" + dataset_name + "_references.tsv", sep="\t", index=False)
     print(f"...done ({time.time() - start:.1f} seconds)")
     return references_df
