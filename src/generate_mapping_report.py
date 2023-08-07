@@ -1,7 +1,8 @@
+import uuid
 import pandas as pd
 from owlready2 import *
 
-__version__ = "0.8.0"
+__version__ = "0.8.1"
 
 BASE_IRI = "https://computationalbiomed.hms.harvard.edu/ontology/"
 
@@ -121,7 +122,7 @@ def _create_instance(ontology, ontology_term_iri, source_term, source_term_id, s
             if "http://" in source_term_id or "https://" in source_term_id:
                 new_instance_iri = source_term_id
             else:
-                new_instance_iri = BASE_IRI + source_term_id
+                new_instance_iri = BASE_IRI + str(uuid.uuid4())
 
         if ontology.world[new_instance_iri] is not None:
             labels = ontology.world[new_instance_iri].label
