@@ -9,7 +9,7 @@ This repository provides a SQLite database designed to facilitate search for GWA
 
 - `gwascatalog_metadata` contains the original GWAS Catalog metadata table.
 - `gwascatalog_references` contains details obtained from PubMed about the articles in the `PUBMEDID` column of the metadata table. 
-- `gwascatalog_mappings` contains ontology mappings extracted from `gwascatalog_metadata`, with an additional column `MappedTermCURIE` that provides compact term identifiers (CURIEs) to enable matching/joining on terms in the EFO tables described next.
+- `gwascatalog_mappings` contains ontology mappings extracted from `gwascatalog_metadata` with each mapping in a separate row. In the original metadata there are often multiple ontology mappings provided as comma-separated strings.
 - `efo_labels` contains the following details:
   - all terms in EFO, represented by their CURIEs (`Subject` column). 
   - term labels (`Object` column). 
@@ -18,7 +18,6 @@ This repository provides a SQLite database designed to facilitate search for GWA
   - count of how many metadata points are directly mapped to those ontology terms (`Direct` column). 
   - count of how many metadata points are indirectly mapped to those terms via a more specific term in the hierarchy (`Inherited` column).
 - `efo_edges` and `efo_entailed_edges` contain, respectively, the asserted and entailed hierarchical (IS-A/SubClassOf) relationships between terms in EFO.
-- `efo_dbxrefs` contains database cross-references between terms in EFO and terms in other ontologies or controlled vocabularies, such as MeddRA, OMIM, MeSH, etc.
 - `efo_synonyms` contains the potentially multiple synonyms (in the `Object` column) of each EFO term (given in the `Subject` column).
 
 ### Querying the database
