@@ -2,7 +2,7 @@ import uuid
 import pandas as pd
 from owlready2 import *
 
-__version__ = "0.8.1"
+__version__ = "0.8.2"
 
 BASE_IRI = "https://computationalbiomed.hms.harvard.edu/ontology/"
 
@@ -109,8 +109,7 @@ def _create_instances(ontology, mappings_df, source_term_id_col, source_term_sec
         if use_reasoning:
             print("...reasoning over ontology...")
             owlready2.reasoning.JAVA_MEMORY = 20000  # TODO: even so the HermiT reasoner performs poorly on EFO+mappings
-            with ontology:
-                sync_reasoner()
+            sync_reasoner([ontology])
 
 
 def _create_instance(ontology, ontology_term_iri, source_term, source_term_id, source_term_secondary_id):
