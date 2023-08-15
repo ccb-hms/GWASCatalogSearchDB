@@ -5,7 +5,7 @@ import bioregistry
 import pandas as pd
 from collections import deque
 
-__version__ = "0.9.0"
+__version__ = "0.9.1"
 
 SUBJECT_COL = "Subject"
 OBJECT_COL = "Object"
@@ -191,7 +191,10 @@ def _get_curie(term):
             return "DBR:" + term.rsplit('/', 1)[1]
         else:
             return term
-    return curie.upper()
+    curie = curie.upper()
+    if "OBO:" in curie:
+        curie = curie.replace("OBO:", "obo:")
+    return curie
 
 
 def _get_disease_location(connection, subject):
