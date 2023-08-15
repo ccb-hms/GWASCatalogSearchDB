@@ -4,7 +4,7 @@ import time
 import pandas as pd
 from generate_ontology_tables import get_curie_id_for_term
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 
 def get_text2term_mappings_table(metadata_df):
@@ -12,6 +12,7 @@ def get_text2term_mappings_table(metadata_df):
     for _, row in metadata_df.iterrows():
         # Split the comma-separated URIs in "MAPPED_TRAIT_URI" into separate rows
         mapped_trait_uri = row['MAPPED_TRAIT_URI']
+        # TODO split the comma-separated labels as well, or obtain the label for each split out IRI
         if mapped_trait_uri != "" and not pd.isna(mapped_trait_uri):
             if "," in mapped_trait_uri:
                 iris_list = mapped_trait_uri.split(',')
@@ -53,6 +54,7 @@ if __name__ == "__main__":
                    metadata_df=gwascatalog_metadata,
                    ontology_mappings_df=ontology_mappings,
                    ontology_name="EFO",
+                   ontology_url="http://www.ebi.ac.uk/efo/releases/v3.43.0/efo.owl",
                    resource_col="DISEASE.TRAIT",
                    resource_id_col="STUDY.ACCESSION",
                    ontology_term_iri_col="MAPPED_TRAIT_URI",
