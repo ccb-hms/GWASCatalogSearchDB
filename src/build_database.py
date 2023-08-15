@@ -10,7 +10,7 @@ from metapub import PubMedFetcher
 from generate_ontology_tables import get_semsql_tables_for_ontology
 from generate_mapping_report import get_mapping_counts
 
-__version__ = "1.2.2"
+__version__ = "1.2.4"
 
 DB_RESOURCES_FOLDER = "../resources/"
 
@@ -30,7 +30,8 @@ def build_database(metadata_df, dataset_name, ontology_name,
                    resource_id_col=text2term_mapping_source_term_id_col,
                    ontology_term_iri_col=text2term_mapping_target_term_iri_col,
                    ontology_semsql_db_url="", ontology_url="", pmid_col="",
-                   ontology_mappings_df=None, mapping_minimum_score=0.7, mapping_base_iris=()):
+                   ontology_mappings_df=None, mapping_minimum_score=0.7, mapping_base_iris=(),
+                   include_cross_ontology_references_table=False):
     ontology_name = ontology_name.lower()
 
     # Get target ontology URL from the specified ontology name
@@ -59,8 +60,8 @@ def build_database(metadata_df, dataset_name, ontology_name,
     import_df_to_db(db_connection, data_frame=edges_df, table_name=ontology_name + "_edges")
     import_df_to_db(db_connection, data_frame=entailed_edges_df, table_name=ontology_name + "_entailed_edges")
     import_df_to_db(db_connection, data_frame=synonyms_df, table_name=ontology_name + "_synonyms")
-    # TODO perhaps make inclusion of database cross-references optional
-    # import_df_to_db(db_connection, data_frame=dbxrefs_df, table_name=ontology_name + "_dbxrefs")
+    if include_cross_ontology_references_table:
+        import_df_to_db(db_connection, data_frame=dbxrefs_df, table_name=ontology_name + "_dbxrefs")
 
     # Get details (title, abstract, journal) from PubMed about references in the specified PMID column
     references_table_filename = DB_RESOURCES_FOLDER + dataset_name + "_references.tsv"
@@ -129,7 +130,6 @@ def map_metadata_to_ontologies(metadata_df, dataset_name, ontology_url, min_scor
                                    output_file=DB_RESOURCES_FOLDER + dataset_name + "_mappings.csv",
                                    base_iris=base_iris)
     mappings.columns = mappings.columns.str.replace(" ", "")  # remove spaces from column names
-    mappings[text2term_mapping_score_col] = mappings[text2term_mapping_score_col].astype(float).round(decimals=3)
     print(f"...done ({time.time() - start:.1f} seconds)")
     return mappings
 
@@ -142,7 +142,9 @@ def get_pubmed_details(metadata_df, dataset_name, pmid_col):
     fetch = PubMedFetcher()
     articles = []
     for pmid in tqdm(pmids):
-        articles.append(get_pubmed_article_details(fetch, pmid))
+        article_details = get_pubmed_article_details(fetch, pmid)
+        if article_details != "":
+            articles.append(article_details)
     references_df = pd.DataFrame(articles, columns=[pmid_col, 'Journal', 'Title', 'Abstract', 'Year', 'URL'])
     references_df.to_csv(DB_RESOURCES_FOLDER + dataset_name + "_references.tsv", sep="\t", index=False)
     print(f"...done ({time.time() - start:.1f} seconds)")
@@ -162,3 +164,4 @@ def get_pubmed_article_details(pubmed_fetcher, pmid):
         except Exception as e:
             # Try to fetch details again. Sometimes the NCBI API errors out, but the second attempt (usually) succeeds
             return get_pubmed_article_details(pubmed_fetcher, pmid)
+    return ""
