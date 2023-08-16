@@ -25,15 +25,19 @@ def resources_annotated_with_terms(db_cursor, search_terms, include_subclasses=T
 
     SQL query:
     SELECT DISTINCT
-        m.`STUDY.ACCESSION`,
-        m.`DISEASE.TRAIT`,
-        m.MAPPED_TRAIT,
-        m.MAPPED_TRAIT_URI
-    FROM `gwascatalog_metadata` m
-        LEFT JOIN efo_entailed_edges ee ON (m.MAPPED_TRAIT_CURIE = ee.Subject)
-    WHERE (m.MAPPED_TRAIT_CURIE = 'EFO:0009605' OR ee.Object = 'EFO:0009605'
-        OR m.MAPPED_TRAIT_CURIE = 'EFO:0005741' OR ee.Object = 'EFO:0005741')
-
+        study.`STUDY.ACCESSION`,
+        study.`DISEASE.TRAIT`,
+        study.MAPPED_TRAIT,
+        study.MAPPED_TRAIT_URI
+    FROM
+        `gwascatalog_metadata` study
+    WHERE
+        study.`STUDY.ACCESSION` IN (
+            SELECT DISTINCT mapping.`STUDY.ACCESSION`
+            FROM `gwascatalog_mappings` mapping
+                     LEFT JOIN efo_entailed_edges ee ON (mapping.MAPPED_TRAIT_CURIE = ee.Subject)
+            WHERE (mapping.MAPPED_TRAIT_CURIE = 'EFO:0005140' OR ee.Object = 'EFO:0005140')
+        );
     """
     if include_subclasses:
         if direct_subclasses_only:
@@ -43,25 +47,29 @@ def resources_annotated_with_terms(db_cursor, search_terms, include_subclasses=T
     else:
         ontology_table = "efo_edges"
 
-    query = '''SELECT DISTINCT 
-                    m.`STUDY.ACCESSION`,
-                    m.`DISEASE.TRAIT`,
-                    m.MAPPED_TRAIT,
-                    m.MAPPED_TRAIT_URI
-                FROM `gwascatalog_metadata` m
-                LEFT JOIN ''' + ontology_table + ''' ee ON (m.MAPPED_TRAIT_CURIE = ee.Subject)'''
-
+    query = '''SELECT DISTINCT
+                    study.`STUDY.ACCESSION`,
+                    study.`DISEASE.TRAIT`,
+                    study.MAPPED_TRAIT,
+                    study.MAPPED_TRAIT_URI
+                FROM
+                    `gwascatalog_metadata` study
+                WHERE
+                    study.`STUDY.ACCESSION` IN (
+                        SELECT DISTINCT mapping.`STUDY.ACCESSION`
+                        FROM `gwascatalog_mappings` mapping
+                            LEFT JOIN ''' + ontology_table + ''' ee ON (mapping.MAPPED_TRAIT_CURIE = ee.Subject)'''
     index = 0
     where_clause = "\nWHERE ("
     for term in search_terms:
         if index == 0:
-            where_clause += "m.MAPPED_TRAIT_CURIE = \'" + term + "\'"
+            where_clause += "mapping.MAPPED_TRAIT_CURIE = \'" + term + "\'"
         else:
-            where_clause += " OR m.MAPPED_TRAIT_CURIE = \'" + term + "\'"
+            where_clause += " OR mapping.MAPPED_TRAIT_CURIE = \'" + term + "\'"
         if include_subclasses:
             where_clause += " OR ee.Object = \'" + term + "\'"
         index += 1
-    query += where_clause + ")"
+    query += where_clause + "))"
 
     print(query + "\n")
 
@@ -79,7 +87,7 @@ if __name__ == '__main__':
                                         search_terms=['EFO:0009605', 'EFO:0005741'],
                                         include_subclasses=True,
                                         direct_subclasses_only=False)
-    output_file = "query_output.tsv"
+    output_file = "../test/query_output.tsv"
     df.to_csv(output_file, sep="\t", index=False)
 
     print(df)
