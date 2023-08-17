@@ -4,3 +4,4 @@ bioregistry~=0.10.6
 Owlready2~=0.44
 metapub~=0.5.5
 tqdm~=4.66.1
+requests~=2.31.0
