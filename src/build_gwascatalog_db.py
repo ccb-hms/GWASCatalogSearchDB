@@ -2,11 +2,12 @@ import io
 import os
 import sys
 import time
-import pandas as pd
 import requests
+import pandas as pd
+from datetime import datetime
 from generate_ontology_tables import get_curie_id_for_term
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 GWASCATALOG_STUDIES_TABLE_URL = "https://www.ebi.ac.uk/gwas/api/search/downloads/studies_alternative"
 
@@ -73,12 +74,21 @@ def get_text2term_mappings_table(metadata_df):
     return mappings_df
 
 
+def get_version_info_table():
+    iso_date = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+    data = [(iso_date, "3.43.0")]
+    df = pd.DataFrame(data, columns=["StudiesTable", "EFO"])
+    return df
+
+
 if __name__ == "__main__":
     print("Downloading GWAS Catalog studies table...")
     gwascatalog_metadata = get_gwascatalog_studies_table()  # get studies metadata table
 
     # Generate and save a text2term-formatted table of ontology mappings in the GWAS Catalog metadata table
     ontology_mappings = get_text2term_mappings_table(gwascatalog_metadata)
+
+    extra_tables = {"version_info": get_version_info_table()}
 
     # Check if an NCBI API Key is provided
     if len(sys.argv) > 1:
@@ -97,5 +107,6 @@ if __name__ == "__main__":
                    resource_col=OUTPUT_DB_TRAIT_COLUMN,
                    resource_id_col=OUTPUT_DB_STUDY_ID_COLUMN,
                    ontology_term_iri_col=MAPPED_TRAIT_URI_COLUMN,
-                   pmid_col=PUBMED_ID_COLUMN)
+                   pmid_col=PUBMED_ID_COLUMN,
+                   additional_tables=extra_tables)
     print(f"Finished building database ({time.time() - start:.1f} seconds)")
