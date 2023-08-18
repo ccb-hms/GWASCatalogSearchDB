@@ -10,7 +10,7 @@ from metapub import PubMedFetcher
 from generate_ontology_tables import get_semsql_tables_for_ontology
 from generate_mapping_report import get_mapping_counts
 
-__version__ = "1.2.4"
+__version__ = "1.2.5"
 
 DB_RESOURCES_FOLDER = "../resources/"
 
@@ -31,7 +31,7 @@ def build_database(metadata_df, dataset_name, ontology_name,
                    ontology_term_iri_col=text2term_mapping_target_term_iri_col,
                    ontology_semsql_db_url="", ontology_url="", pmid_col="",
                    ontology_mappings_df=None, mapping_minimum_score=0.7, mapping_base_iris=(),
-                   include_cross_ontology_references_table=False):
+                   include_cross_ontology_references_table=False, additional_tables=()):
     ontology_name = ontology_name.lower()
 
     # Get target ontology URL from the specified ontology name
@@ -95,6 +95,11 @@ def build_database(metadata_df, dataset_name, ontology_name,
     # Merge the counts table with the labels table on the "iri" column, and add the merged table to the database
     merged_df = pd.merge(labels_df, counts_df, on="IRI")
     import_df_to_db(db_connection, data_frame=merged_df, table_name=ontology_name + "_labels")
+
+    # Add any additional tables given
+    if len(additional_tables) > 0:
+        for table_name in additional_tables.keys():
+            import_df_to_db(db_connection, data_frame=additional_tables[table_name], table_name=table_name)
 
 
 dtypes = {'int64': 'INTEGER', 'float64': 'REAL', 'object': 'TEXT', 'datetime64': 'TEXT'}
