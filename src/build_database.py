@@ -156,7 +156,7 @@ def get_pubmed_details(metadata_df, dataset_name, pmid_col):
     return references_df
 
 
-def get_pubmed_article_details(pubmed_fetcher, pmid):
+def get_pubmed_article_details(pubmed_fetcher, pmid, repeat=True):
     if pmid != "0" and pmid != "nan":
         try:
             article = pubmed_fetcher.article_by_pmid(pmid)
@@ -167,6 +167,7 @@ def get_pubmed_article_details(pubmed_fetcher, pmid):
             url = article.url
             return pmid, journal, title, abstract, year, url
         except Exception as e:
-            # Try to fetch details again. Sometimes the NCBI API errors out, but the second attempt (usually) succeeds
-            return get_pubmed_article_details(pubmed_fetcher, pmid)
+            # Try to fetch details once more. Sometimes the NCBI API errors out, but a second attempt (usually) succeeds
+            if repeat:
+                return get_pubmed_article_details(pubmed_fetcher, pmid, repeat=False)
     return ""
