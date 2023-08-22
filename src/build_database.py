@@ -10,7 +10,7 @@ from metapub import PubMedFetcher
 from generate_ontology_tables import get_semsql_tables_for_ontology
 from generate_mapping_report import get_mapping_counts
 
-__version__ = "1.2.5"
+__version__ = "1.2.6"
 
 DB_RESOURCES_FOLDER = "../resources/"
 
@@ -92,8 +92,11 @@ def build_database(metadata_df, dataset_name, ontology_name,
                                    mapped_term_iri_col=ontology_term_iri_col)
     counts_df.to_csv(DB_RESOURCES_FOLDER + ontology_name + "_mappings_counts.tsv", sep="\t", index=False)
 
-    # Merge the counts table with the labels table on the "iri" column, and add the merged table to the database
+    # Merge the counts table with the labels table on the "IRI" column
     merged_df = pd.merge(labels_df, counts_df, on="IRI")
+
+    # Save the merged table to disk and add it to the database
+    merged_df.to_csv(DB_RESOURCES_FOLDER + ontology_name + "_labels.tsv", sep="\t", index=False)
     import_df_to_db(db_connection, data_frame=merged_df, table_name=ontology_name + "_labels")
 
     # Add any additional tables given
