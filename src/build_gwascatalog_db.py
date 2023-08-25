@@ -1,15 +1,21 @@
 import io
 import os
 import sys
+import tarfile
 import time
 import requests
 import pandas as pd
 from datetime import datetime
 from generate_ontology_tables import get_curie_id_for_term
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"
 
+# Input tables from GWAS Catalog
 GWASCATALOG_STUDIES_TABLE_URL = "https://www.ebi.ac.uk/gwas/api/search/downloads/studies_alternative"
+GWASCATALOG_ASSOCIATIONS_TABLE_URL = "https://www.ebi.ac.uk/gwas/api/search/downloads/alternative"
+
+DATASET_NAME = "gwascatalog"
+OUTPUT_DATABASE_FILEPATH = "../" + DATASET_NAME + "_search.db"
 
 # Column names of the studies metadata table
 INPUT_METADATA_STUDY_ID_COLUMN = "STUDY ACCESSION"
@@ -30,7 +36,7 @@ def download_gwascatalog_table(table_url):
     response = requests.get(table_url)
     if response.status_code == 200:
         data = response.content
-        df = pd.read_csv(io.StringIO(data.decode('utf-8')), sep="\t")
+        df = pd.read_csv(io.StringIO(data.decode('utf-8')), sep="\t", low_memory=False)
         return df
     else:
         print(f"Failed to retrieve GWAS Catalog table from the URL {table_url}")
@@ -48,6 +54,21 @@ def get_gwascatalog_studies_table():
                  INPUT_METADATA_TABLE_TRAIT_COLUMN: OUTPUT_DB_TRAIT_COLUMN})
     gwascatalog_studies_df.to_csv("../resources/gwascatalog_metadata.tsv", sep="\t", index=False)
     return gwascatalog_studies_df
+
+
+def get_gwascatalog_associations_table():
+    gwascatalog_associations_df = download_gwascatalog_table(GWASCATALOG_ASSOCIATIONS_TABLE_URL)
+
+    # Reduce the table to columns of interest
+    gwascatalog_associations_df = gwascatalog_associations_df[
+        ['STUDY ACCESSION', 'REGION', 'CHR_ID', 'CHR_POS', 'REPORTED GENE(S)', 'MAPPED_GENE', 'UPSTREAM_GENE_ID',
+         'DOWNSTREAM_GENE_ID', 'SNP_GENE_IDS', 'UPSTREAM_GENE_DISTANCE', 'DOWNSTREAM_GENE_DISTANCE',
+         'STRONGEST SNP-RISK ALLELE', 'SNPS', 'SNP_ID_CURRENT', 'RISK ALLELE FREQUENCY', 'P-VALUE', 'PVALUE_MLOG']]
+
+    gwascatalog_associations_df = gwascatalog_associations_df.rename(
+        columns={INPUT_METADATA_STUDY_ID_COLUMN: OUTPUT_DB_STUDY_ID_COLUMN})
+    gwascatalog_associations_df.to_csv("../resources/gwascatalog_associations.tsv", sep="\t", index=False)
+    return gwascatalog_associations_df
 
 
 def get_text2term_mappings_table(metadata_df):
@@ -74,21 +95,38 @@ def get_text2term_mappings_table(metadata_df):
     return mappings_df
 
 
-def get_version_info_table():
-    iso_date = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
-    data = [(iso_date, "3.43.0")]
-    df = pd.DataFrame(data, columns=["StudiesTable", "EFO"])
+def get_version_info_table(studies_timestamp, associations_timestamp, efo_version):
+    data = [("Studies", studies_timestamp),
+            ("Associations", associations_timestamp),
+            ("EFO", efo_version)]
+    df = pd.DataFrame(data, columns=["Resource", "Version"])
     return df
 
 
+def create_tar_archive(source_file):
+    base_filename = os.path.basename(source_file)
+
+    # Create a tar archive using gzip compression
+    with tarfile.open(source_file + ".tar.gz", "w:gz") as tar:
+        tar.add(source_file, arcname=base_filename)
+
+
 if __name__ == "__main__":
-    print("Downloading GWAS Catalog studies table...")
-    gwascatalog_metadata = get_gwascatalog_studies_table()  # get studies metadata table
+    print("Downloading GWAS Catalog Studies table...")
+    studies_df = get_gwascatalog_studies_table()  # get studies metadata table
+    studies_download_timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+
+    print("Downloading GWAS Catalog Associations table...")
+    associations_df = get_gwascatalog_associations_table()  # get associations table
+    associations_download_timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+
+    version_info_df = get_version_info_table(studies_download_timestamp, associations_download_timestamp, "3.43.0")
+
+    extra_tables = {"version_info": version_info_df,
+                    "gwascatalog_associations": associations_df}
 
     # Generate and save a text2term-formatted table of ontology mappings in the GWAS Catalog metadata table
-    ontology_mappings = get_text2term_mappings_table(gwascatalog_metadata)
-
-    extra_tables = {"version_info": get_version_info_table()}
+    ontology_mappings = get_text2term_mappings_table(studies_df)
 
     # Check if an NCBI API Key is provided
     if len(sys.argv) > 1:
@@ -99,8 +137,8 @@ if __name__ == "__main__":
 
     start = time.time()
     from build_database import build_database
-    build_database(dataset_name="gwascatalog",
-                   metadata_df=gwascatalog_metadata,
+    build_database(dataset_name=DATASET_NAME,
+                   metadata_df=studies_df,
                    ontology_mappings_df=ontology_mappings,
                    ontology_name="EFO",
                    ontology_url="http://www.ebi.ac.uk/efo/releases/v3.43.0/efo.owl",
@@ -108,5 +146,7 @@ if __name__ == "__main__":
                    resource_id_col=OUTPUT_DB_STUDY_ID_COLUMN,
                    ontology_term_iri_col=MAPPED_TRAIT_URI_COLUMN,
                    pmid_col=PUBMED_ID_COLUMN,
-                   additional_tables=extra_tables)
+                   additional_tables=extra_tables,
+                   output_database_filepath=OUTPUT_DATABASE_FILEPATH)
+    create_tar_archive(source_file=OUTPUT_DATABASE_FILEPATH)
     print(f"Finished building database ({time.time() - start:.1f} seconds)")
