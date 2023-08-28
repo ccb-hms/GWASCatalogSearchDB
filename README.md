@@ -14,7 +14,8 @@ The database contains the tables depicted and described below.
 
 ![](resources/gwascatalog_search_tables.png)
 
-- `gwascatalog_metadata` contains the original GWAS Catalog metadata table.
+- `gwascatalog_metadata` contains the GWAS Catalog table [_All studies v1.0.2_](https://www.ebi.ac.uk/gwas/docs/file-downloads).
+- `gwascatalog_associations` contains some columns from the table [_All associations v1.0.2_](https://www.ebi.ac.uk/gwas/docs/file-downloads).  
 - `gwascatalog_references` contains details obtained from PubMed about the articles in the `PUBMEDID` column of the metadata table. 
 - `gwascatalog_mappings` contains ontology mappings extracted from `gwascatalog_metadata` with each mapping in a separate row. In the original metadata there are often multiple ontology mappings provided as comma-separated strings.
 - `efo_labels` contains the following details:
@@ -26,6 +27,7 @@ The database contains the tables depicted and described below.
   - count of how many metadata points are indirectly mapped to those terms via a more specific term in the hierarchy (`Inherited` column).
 - `efo_edges` and `efo_entailed_edges` contain, respectively, the asserted and entailed hierarchical (IS-A/SubClassOf) relationships between terms in EFO.
 - `efo_synonyms` contains the potentially multiple synonyms (in the `Object` column) of each EFO term (given in the `Subject` column).
+- `version_info` contains the timestamps of download of the GWAS Catalog tables and the EFO version. 
 
 ### Querying the database
 `src/query_database.py` contains a search function (described below) to query the `gwascatalog_search.db` database for records annotated/mapped to a user-specified set of EFO traits.
