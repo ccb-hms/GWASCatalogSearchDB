@@ -1,5 +1,9 @@
+import os
 import sqlite3
+import tarfile
 import pandas as pd
+
+__version__ = "0.2.0"
 
 
 def resources_annotated_with_terms(db_cursor, search_terms, include_subclasses=True, direct_subclasses_only=False):
@@ -79,7 +83,13 @@ def resources_annotated_with_terms(db_cursor, search_terms, include_subclasses=T
 
 
 if __name__ == '__main__':
-    connection = sqlite3.connect("../gwascatalog_search.db")
+    tar_file_path = os.path.join("..", "gwascatalog_search.db.tar.gz")
+    database_file_name = "gwascatalog_search.db"
+
+    with tarfile.open(tar_file_path, "r:gz") as tar:
+        tar.extract(database_file_name, path="..")
+
+    connection = sqlite3.connect(os.path.join("..", database_file_name))
     cursor = connection.cursor()
 
     # Search for GWASCatalog studies mapped to either EFO:0009605 (pancreas disease) or EFO:0005741 (infectious disease)
@@ -87,7 +97,7 @@ if __name__ == '__main__':
                                         search_terms=['EFO:0009605', 'EFO:0005741'],
                                         include_subclasses=True,
                                         direct_subclasses_only=False)
-    output_file = "../test/query_output.tsv"
+    output_file = os.path.join("..", "test", "query_output.tsv")
     df.to_csv(output_file, sep="\t", index=False)
 
     print(df)
