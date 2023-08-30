@@ -8,7 +8,7 @@ import pandas as pd
 from datetime import datetime
 from generate_ontology_tables import get_curie_id_for_term
 
-__version__ = "0.6.0"
+__version__ = "0.6.1"
 
 # Input tables from GWAS Catalog
 GWASCATALOG_STUDIES_TABLE_URL = "https://www.ebi.ac.uk/gwas/api/search/downloads/studies_alternative"
@@ -63,7 +63,11 @@ def get_gwascatalog_associations_table():
     gwascatalog_associations_df = gwascatalog_associations_df[
         ['STUDY ACCESSION', 'REGION', 'CHR_ID', 'CHR_POS', 'REPORTED GENE(S)', 'MAPPED_GENE', 'UPSTREAM_GENE_ID',
          'DOWNSTREAM_GENE_ID', 'SNP_GENE_IDS', 'UPSTREAM_GENE_DISTANCE', 'DOWNSTREAM_GENE_DISTANCE',
-         'STRONGEST SNP-RISK ALLELE', 'SNPS', 'SNP_ID_CURRENT', 'RISK ALLELE FREQUENCY', 'P-VALUE', 'PVALUE_MLOG']]
+         'STRONGEST SNP-RISK ALLELE', 'SNPS', 'SNP_ID_CURRENT', 'RISK ALLELE FREQUENCY', 'P-VALUE', 'PVALUE_MLOG',
+         'MAPPED_TRAIT', 'MAPPED_TRAIT_URI']]
+
+    gwascatalog_associations_df[MAPPED_TRAIT_CURIE_COLUMN] = gwascatalog_associations_df['MAPPED_TRAIT_URI'].apply(
+        get_curie_id_for_term)
 
     gwascatalog_associations_df = gwascatalog_associations_df.rename(
         columns={INPUT_METADATA_STUDY_ID_COLUMN: OUTPUT_DB_STUDY_ID_COLUMN})
