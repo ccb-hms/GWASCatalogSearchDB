@@ -8,7 +8,11 @@ import pandas as pd
 from datetime import datetime
 from generate_ontology_tables import get_curie_id_for_term
 
-__version__ = "0.6.1"
+__version__ = "0.6.2"
+
+# Versions of EFO and the resulting search database
+EFO_VERSION = "3.43.0"
+SEARCH_DB_VERSION = "0.7.1"
 
 # Input tables from GWAS Catalog
 GWASCATALOG_STUDIES_TABLE_URL = "https://www.ebi.ac.uk/gwas/api/search/downloads/studies_alternative"
@@ -99,10 +103,11 @@ def get_text2term_mappings_table(metadata_df):
     return mappings_df
 
 
-def get_version_info_table(studies_timestamp, associations_timestamp, efo_version):
-    data = [("Studies", studies_timestamp),
-            ("Associations", associations_timestamp),
-            ("EFO", efo_version)]
+def get_version_info_table(studies_timestamp, associations_timestamp, efo_version, search_db_version):
+    data = [("SearchDB", search_db_version),
+            ("EFO", efo_version),
+            ("Studies", studies_timestamp),
+            ("Associations", associations_timestamp)]
     df = pd.DataFrame(data, columns=["Resource", "Version"])
     return df
 
@@ -124,7 +129,8 @@ if __name__ == "__main__":
     associations_df = get_gwascatalog_associations_table()  # get associations table
     associations_download_timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
 
-    version_info_df = get_version_info_table(studies_download_timestamp, associations_download_timestamp, "3.43.0")
+    version_info_df = get_version_info_table(studies_download_timestamp, associations_download_timestamp,
+                                             EFO_VERSION, SEARCH_DB_VERSION)
 
     extra_tables = {"version_info": version_info_df,
                     "gwascatalog_associations": associations_df}
