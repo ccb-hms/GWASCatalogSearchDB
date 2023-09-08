@@ -10,7 +10,7 @@ from metapub import PubMedFetcher
 from generate_ontology_tables import get_semsql_tables_for_ontology
 from generate_mapping_report import get_mapping_counts
 
-__version__ = "1.2.7"
+__version__ = "1.3.0"
 
 DB_RESOURCES_FOLDER = "../resources/"
 
@@ -32,7 +32,7 @@ def build_database(metadata_df, dataset_name, ontology_name,
                    ontology_term_iri_col=text2term_mapping_target_term_iri_col,
                    ontology_semsql_db_url="", ontology_url="", pmid_col="",
                    ontology_mappings_df=None, mapping_minimum_score=0.7, mapping_base_iris=(),
-                   include_cross_ontology_references_table=False, additional_tables=()):
+                   include_cross_ontology_references_table=False, additional_tables=(), additional_ontologies=()):
     ontology_name = ontology_name.lower()
 
     # Get target ontology URL from the specified ontology name
@@ -48,22 +48,14 @@ def build_database(metadata_df, dataset_name, ontology_name,
     # Add the given metadata table to the database
     import_df_to_db(db_connection, data_frame=metadata_df, table_name=dataset_name + "_metadata")
 
-    # Get SemanticSQL ontology tables and add them to the database
-    start = time.time()
-    if ontology_semsql_db_url == "":
-        ontology_semsql_db_url = "https://s3.amazonaws.com/bbop-sqlite/" + ontology_name + ".db"
-    edges_df, entailed_edges_df, labels_df, dbxrefs_df, synonyms_df, ontology_version = get_semsql_tables_for_ontology(
-        ontology_url=ontology_semsql_db_url,
-        ontology_name=ontology_name.upper(),
-        tables_output_folder=DB_RESOURCES_FOLDER,
-        db_output_folder=DB_RESOURCES_FOLDER,
-        save_tables=True)
-    print(f"...done ({time.time() - start:.1f} seconds)")
-    import_df_to_db(db_connection, data_frame=edges_df, table_name=ontology_name + "_edges")
-    import_df_to_db(db_connection, data_frame=entailed_edges_df, table_name=ontology_name + "_entailed_edges")
-    import_df_to_db(db_connection, data_frame=synonyms_df, table_name=ontology_name + "_synonyms")
-    if include_cross_ontology_references_table:
-        import_df_to_db(db_connection, data_frame=dbxrefs_df, table_name=ontology_name + "_dbxrefs")
+    # Add ontology tables to the database
+    primary_ontology_labels_df = import_ontology_tables(db_connection, ontology_name=ontology_name,
+                                                        ontology_semsql_db_url=ontology_semsql_db_url,
+                                                        include_crossrefs_table=include_cross_ontology_references_table,
+                                                        primary_ontology=True)
+    for ontology in additional_ontologies:
+        import_ontology_tables(db_connection, ontology_name=ontology.lower(), ontology_semsql_db_url="",
+                               include_crossrefs_table=False, primary_ontology=False)
 
     # Get details (title, abstract, journal) from PubMed about references in the specified PMID column
     references_table_filename = DB_RESOURCES_FOLDER + dataset_name + "_references.tsv"
@@ -95,7 +87,7 @@ def build_database(metadata_df, dataset_name, ontology_name,
     counts_df.to_csv(DB_RESOURCES_FOLDER + ontology_name + "_mappings_counts.tsv", sep="\t", index=False)
 
     # Merge the counts table with the labels table on the "IRI" column
-    merged_df = pd.merge(labels_df, counts_df, on="IRI")
+    merged_df = pd.merge(primary_ontology_labels_df, counts_df, on="IRI")
 
     # Save the merged table to disk and add it to the database
     merged_df.to_csv(DB_RESOURCES_FOLDER + ontology_name + "_labels.tsv", sep="\t", index=False)
@@ -105,6 +97,31 @@ def build_database(metadata_df, dataset_name, ontology_name,
     if len(additional_tables) > 0:
         for table_name in additional_tables.keys():
             import_df_to_db(db_connection, data_frame=additional_tables[table_name], table_name=table_name)
+
+
+def import_ontology_tables(db_connection, ontology_name, ontology_semsql_db_url,
+                           include_crossrefs_table, primary_ontology=True):
+    # Get SemanticSQL ontology tables and add them to the database
+    start = time.time()
+    if ontology_semsql_db_url == "":
+        ontology_semsql_db_url = "https://s3.amazonaws.com/bbop-sqlite/" + ontology_name + ".db.gz"
+    edges_df, entailed_edges_df, labels_df, dbxrefs_df, synonyms_df, ontology_version = \
+        get_semsql_tables_for_ontology(
+            ontology_url=ontology_semsql_db_url,
+            ontology_name=ontology_name.upper(),
+            tables_output_folder=DB_RESOURCES_FOLDER,
+            db_output_folder=DB_RESOURCES_FOLDER,
+            save_tables=True,
+            include_disease_locations=primary_ontology)
+    print(f"...done ({time.time() - start:.1f} seconds)")
+    import_df_to_db(db_connection, data_frame=edges_df, table_name=ontology_name + "_edges")
+    import_df_to_db(db_connection, data_frame=entailed_edges_df, table_name=ontology_name + "_entailed_edges")
+    import_df_to_db(db_connection, data_frame=synonyms_df, table_name=ontology_name + "_synonyms")
+    if include_crossrefs_table:
+        import_df_to_db(db_connection, data_frame=dbxrefs_df, table_name=ontology_name + "_dbxrefs")
+    if not primary_ontology:
+        import_df_to_db(db_connection, data_frame=labels_df, table_name=ontology_name + "_labels")
+    return labels_df
 
 
 dtypes = {'int64': 'INTEGER', 'float64': 'REAL', 'object': 'TEXT', 'datetime64': 'TEXT'}
