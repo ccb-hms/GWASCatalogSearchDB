@@ -8,11 +8,11 @@ import pandas as pd
 from datetime import datetime
 from generate_ontology_tables import get_curie_id_for_term
 
-__version__ = "0.6.2"
+__version__ = "0.7.0"
 
 # Versions of EFO and the resulting search database
-EFO_VERSION = "3.43.0"
-SEARCH_DB_VERSION = "0.7.1"
+EFO_VERSION = "3.57.0"
+SEARCH_DB_VERSION = "0.8.0"
 
 # Input tables from GWAS Catalog
 GWASCATALOG_STUDIES_TABLE_URL = "https://www.ebi.ac.uk/gwas/api/search/downloads/studies_alternative"
@@ -116,7 +116,7 @@ def create_tar_archive(source_file):
     base_filename = os.path.basename(source_file)
 
     # Create a tar archive using gzip compression
-    with tarfile.open(source_file + ".tar.gz", "w:gz") as tar:
+    with tarfile.open(source_file + ".tar.xz", "w:xz") as tar:
         tar.add(source_file, arcname=base_filename)
 
 
@@ -151,7 +151,7 @@ if __name__ == "__main__":
                    metadata_df=studies_df,
                    ontology_mappings_df=ontology_mappings,
                    ontology_name="EFO",
-                   ontology_url="http://www.ebi.ac.uk/efo/releases/v3.43.0/efo.owl",
+                   ontology_url=f"http://www.ebi.ac.uk/efo/releases/v{EFO_VERSION}/efo.owl",
                    resource_col=OUTPUT_DB_TRAIT_COLUMN,
                    resource_id_col=OUTPUT_DB_STUDY_ID_COLUMN,
                    ontology_term_iri_col=MAPPED_TRAIT_URI_COLUMN,
