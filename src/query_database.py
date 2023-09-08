@@ -3,7 +3,7 @@ import sqlite3
 import tarfile
 import pandas as pd
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 
 def resources_annotated_with_terms(db_cursor, search_terms, include_subclasses=True, direct_subclasses_only=False):
@@ -83,10 +83,10 @@ def resources_annotated_with_terms(db_cursor, search_terms, include_subclasses=T
 
 
 if __name__ == '__main__':
-    tar_file_path = os.path.join("..", "gwascatalog_search.db.tar.gz")
+    tar_file_path = os.path.join("..", "gwascatalog_search.db.tar.xz")
     database_file_name = "gwascatalog_search.db"
 
-    with tarfile.open(tar_file_path, "r:gz") as tar:
+    with tarfile.open(tar_file_path, "r:xz") as tar:
         tar.extract(database_file_name, path="..")
 
     connection = sqlite3.connect(os.path.join("..", database_file_name))
