@@ -2,7 +2,7 @@
 
 This repository provides a SQLite database designed to facilitate search for GWAS records in the [GWAS Catalog](https://www.ebi.ac.uk/gwas/) database—the NHGRI-EBI Catalog of human genome-wide association studies. This is achieved by combining the [EFO](https://www.ebi.ac.uk/efo/) ontology mappings specified in the GWAS Catalog metadata with tabular representations of ontology relationships—extracted from a [SemanticSQL](https://github.com/INCATools/semantic-sql) database representation of EFO—such that users can search for GWAS Catalog records by leveraging the EFO class hierarchy. 
 
-### Latest database build
+## Latest database build
 
 | Resource       | Version             | 
 |----------------|---------------------|
@@ -12,7 +12,7 @@ This repository provides a SQLite database designed to facilitate search for GWA
 | _Associations_ | 2023-08-29T09:48:19 |
 
 
-### Building the database
+## Building the database
 The database is built by running the Python module below. 
 
 ```python
@@ -35,11 +35,11 @@ The database contains the tables depicted and described below.
   - disease locations associated with each term, if available (`DiseaseLocation` column). 
   - count of how many metadata points are directly mapped to those ontology terms (`Direct` column). 
   - count of how many metadata points are indirectly mapped to those terms via a more specific term in the hierarchy (`Inherited` column).
-- `efo_edges` and `efo_entailed_edges` contain, respectively, the asserted and entailed hierarchical (IS-A/SubClassOf) relationships between terms in EFO.
+- `efo_edges` and `efo_entailed_edges` contain, respectively, the asserted and entailed hierarchical (**IS-A** / SubClassOf) relationships between terms in EFO.
 - `efo_synonyms` contains the potentially multiple synonyms (in the `Object` column) of each EFO term (given in the `Subject` column).
 - `version_info` contains the timestamps of download of the GWAS Catalog tables and the EFO version. 
 
-### Querying the database
+## Querying the database
 `src/query_database.py` contains a search function (described below) to query the `gwascatalog_search.db` database for records annotated/mapped to a user-specified set of EFO traits.
 
 ```python
@@ -55,6 +55,43 @@ The function parameters are:
 - `include_subclasses`— include resources annotated with subclasses of the given search terms,
         otherwise only resources explicitly annotated with those terms are returned
 - `direct_subclasses_only`— include only the direct subclasses of the given search terms,
-        otherwise all the resources annotated with inferred subclasses of the given terms are returned
+        otherwise all the resources annotated with entailed subclasses of the given terms are returned
 
 Each search term must be an EFO term specified by its compact uniform resource identifier ([CURIE](https://www.w3.org/TR/curie/)). For example `EFO:0005741` is the short form of [http://www.ebi.ac.uk/efo/EFO_0005741](http://www.ebi.ac.uk/efo/EFO_0005741).
+
+
+### Examples 
+
+Here we exemplify the different possible search options, using `'EFO:0009605' (pancreas disease)` as an example search term.
+
+#### Obtaining resources mapped directly to a search term 
+To obtain GWAS Catalog records that are explicitly annotated with a search term, we call the function as such: 
+
+```python
+resources_annotated_with_terms(search_terms=['EFO:0009605'],
+                               include_subclasses=False, 
+                               direct_subclasses_only=False)
+```
+**_Result = 11 records_**. The underlying query performs a lookup over the `gwascatalog_mappings` table to find records where `MAPPED_TRAIT_CURIE = 'EFO:0009605'`. 
+
+
+#### Obtaining resources mapped to direct subclasses of a search term
+To include resources annotated with EFO terms that are direct subclasses of the search term, we set `include_subclasses=True` to include subclasses and then `direct_subclasses_only=True`.
+
+```python
+resources_annotated_with_terms(search_terms=['EFO:0009605'],
+                               include_subclasses=True, 
+                               direct_subclasses_only=True)
+```
+_**Result = 21 records**_. The underlying query performs a lookup over the `efo_edges` table to find terms in the `Subject` column (call these `Sub`) that have in the `Object` column the search term `EFO:0009605`. Then the function returns the resources mapped to any `Sub` term.
+
+#### Obtaining resources mapped to any subclass of a search term
+To include resources annotated with the search term or any of its inherited/entailed subclasses, we set `direct_subclasses_only=False`, as such:
+
+```python
+resources_annotated_with_terms(search_terms=['EFO:0009605'],
+                               include_subclasses=True, 
+                               direct_subclasses_only=True)
+```
+
+**_Result = 408 records_**. The underlying query performs a lookup over the `efo_entailed_edges` table to find `Subject` terms `Sub` where `Object='EFO:0009605'`, and then returns resources mapped to any `Sub` term. Because the entailed_edges table contains all entailed parents (via reasoning) for all ontology terms, this query returns resources annotated with any term that is entailed to be a subclass of the search term.
