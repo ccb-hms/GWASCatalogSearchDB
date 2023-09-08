@@ -2,14 +2,14 @@
 
 This repository provides a SQLite database designed to facilitate search for GWAS records in the [GWAS Catalog](https://www.ebi.ac.uk/gwas/) database—the NHGRI-EBI Catalog of human genome-wide association studies. This is achieved by combining the [EFO](https://www.ebi.ac.uk/efo/) ontology mappings specified in the GWAS Catalog metadata with tabular representations of ontology relationships—extracted from a [SemanticSQL](https://github.com/INCATools/semantic-sql) database representation of EFO—such that users can search for GWAS Catalog records by leveraging the EFO class hierarchy. 
 
-## Latest database build
+### Latest database build
 
 | Resource       | Version             | 
 |----------------|---------------------|
-| _SearchDB_     | 0.7.1               |
-| _EFO_          | 3.43.0              |
-| _Studies_      | 2023-08-29T09:46:50 |
-| _Associations_ | 2023-08-29T09:48:19 |
+| _SearchDB_     | 0.8.0               |
+| _EFO_          | 3.57.0              |
+| _Studies_      | 2023-09-08T13:13:59 |
+| _Associations_ | 2023-09-08T13:15:20 |
 
 
 ## Building the database
@@ -18,7 +18,7 @@ The database is built by running the Python module below.
 ```python
 python3 src/build_gwascatalog_db.py
 ```
-This generates a tarball `gwascatalog_search.db.tar.gz` containing the SQLite3 database `gwascatalog_search.db`. 
+This generates a tarball `gwascatalog_search.db.tar.xz` containing the SQLite3 database `gwascatalog_search.db`. 
 
 The database contains the tables depicted and described below.
 
