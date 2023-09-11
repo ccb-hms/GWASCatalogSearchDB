@@ -6,10 +6,11 @@ This repository provides a SQLite database designed to facilitate search for GWA
 
 | Resource       | Version             | 
 |----------------|---------------------|
-| _SearchDB_     | 0.8.0               |
+| _SearchDB_     | 0.9.0               |
 | _EFO_          | 3.57.0              |
-| _Studies_      | 2023-09-08T13:13:59 |
-| _Associations_ | 2023-09-08T13:15:20 |
+| _UBERON_       | 2023-07-25          |
+| _Studies_      | 2023-09-09T17:13:55 |
+| _Associations_ | 2023-09-09T17:16:10 |
 
 
 ## Building the database
