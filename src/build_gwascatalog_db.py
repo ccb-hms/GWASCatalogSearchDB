@@ -8,11 +8,12 @@ import pandas as pd
 from datetime import datetime
 from generate_ontology_tables import get_curie_id_for_term
 
-__version__ = "0.7.0"
+__version__ = "0.7.1"
 
-# Versions of EFO and the resulting search database
+# Versions of ontologies and the resulting search database
 EFO_VERSION = "3.57.0"
-SEARCH_DB_VERSION = "0.8.0"
+UBERON_VERSION = "2023-07-25"
+SEARCH_DB_VERSION = "0.9.0"
 
 # Input tables from GWAS Catalog
 GWASCATALOG_STUDIES_TABLE_URL = "https://www.ebi.ac.uk/gwas/api/search/downloads/studies_alternative"
@@ -103,9 +104,10 @@ def get_text2term_mappings_table(metadata_df):
     return mappings_df
 
 
-def get_version_info_table(studies_timestamp, associations_timestamp, efo_version, search_db_version):
-    data = [("SearchDB", search_db_version),
-            ("EFO", efo_version),
+def get_version_info_table(studies_timestamp, associations_timestamp):
+    data = [("SearchDB", SEARCH_DB_VERSION),
+            ("EFO", EFO_VERSION),
+            ("UBERON", UBERON_VERSION),
             ("Studies", studies_timestamp),
             ("Associations", associations_timestamp)]
     df = pd.DataFrame(data, columns=["Resource", "Version"])
@@ -129,8 +131,7 @@ if __name__ == "__main__":
     associations_df = get_gwascatalog_associations_table()  # get associations table
     associations_download_timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
 
-    version_info_df = get_version_info_table(studies_download_timestamp, associations_download_timestamp,
-                                             EFO_VERSION, SEARCH_DB_VERSION)
+    version_info_df = get_version_info_table(studies_download_timestamp, associations_download_timestamp)
 
     extra_tables = {"version_info": version_info_df,
                     "gwascatalog_associations": associations_df}
@@ -157,6 +158,7 @@ if __name__ == "__main__":
                    ontology_term_iri_col=MAPPED_TRAIT_URI_COLUMN,
                    pmid_col=PUBMED_ID_COLUMN,
                    additional_tables=extra_tables,
-                   output_database_filepath=OUTPUT_DATABASE_FILEPATH)
+                   output_database_filepath=OUTPUT_DATABASE_FILEPATH,
+                   additional_ontologies=["UBERON"])
     create_tar_archive(source_file=OUTPUT_DATABASE_FILEPATH)
     print(f"Finished building database ({time.time() - start:.1f} seconds)")
