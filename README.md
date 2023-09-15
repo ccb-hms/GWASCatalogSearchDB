@@ -25,6 +25,7 @@ The database contains the tables depicted and described below.
 
 ![](resources/gwascatalog_search_tables.png)
 
+- `version_info` contains the SearchDB version, ontology versions and download timestamps of the GWAS Catalog tables.
 - `gwascatalog_metadata` contains the GWAS Catalog table [_All studies v1.0.2_](https://www.ebi.ac.uk/gwas/docs/file-downloads).
 - `gwascatalog_associations` contains some columns from the table [_All associations v1.0.2_](https://www.ebi.ac.uk/gwas/docs/file-downloads).  
 - `gwascatalog_references` contains details obtained from PubMed about the articles in the `PUBMEDID` column of the metadata table. 
@@ -36,9 +37,32 @@ The database contains the tables depicted and described below.
   - disease locations associated with each term, if available (`DiseaseLocation` column). 
   - count of how many metadata points are directly mapped to those ontology terms (`Direct` column). 
   - count of how many metadata points are indirectly mapped to those terms via a more specific term in the hierarchy (`Inherited` column).
-- `efo_edges` and `efo_entailed_edges` contain, respectively, the asserted and entailed hierarchical (**IS-A** / SubClassOf) relationships between terms in EFO.
 - `efo_synonyms` contains the potentially multiple synonyms (in the `Object` column) of each EFO term (given in the `Subject` column).
-- `version_info` contains the timestamps of download of the GWAS Catalog tables and the EFO version. 
+- `efo_edges` and `efo_entailed_edges` contain, respectively, the asserted and entailed **IS-A**/**SubClassOf** relationships in EFO of the form `Subject IS-A Object`, where `Subject`—the child/subclass term—is represented in the **'Subject'** column. And `Object`—the parent/superclass term—is represented in the **'Object'** column.
+  - `efo_edges` allows querying for direct parents of a term, e.g., `SELECT Object FROM efo_edges WHERE Subject='EFO:1000652' ('acute pancreatitis')` returns:
+
+    | Object                          |
+    |---------------------------------|
+    | EFO:0000278 ('pancreatitis')    |
+    | MONDO:0020683 ('acute disease') |
+
+  - `efo_entailed_edges` allows querying for entailed ancestors of a term, e.g., `SELECT Object FROM efo_entailed_edges WHERE Subject='EFO:1000652' ('acute pancreatitis')` returns:
+
+    | Object                                   |
+    |------------------------------------------|
+    | EFO:0000278 ('pancreatitis')             |
+    | MONDO:0020683 ('acute disease')          |
+    | EFO:0009605 ('pancreas disease')         |
+    | EFO:0001379 ('endocrine system disease') |
+    | EFO:0009903 ('inflammatory disease')     |
+    | EFO:0000405 ('digestive system disease') |
+    | EFO:0000408 ('disease')                  |
+    | BFO:0000016 ('disposition')              |
+    | BFO:0000020 ('material property')        |
+    | EFO:0000001 ('experimental factor')      |
+
+    So `efo_entailed_edges` contains, for a given Subject, all parent terms up to the root of the ontology. The table is called “entailed” because it potentially includes parents derived after reasoning over the ontology, which would not be surfaced by recursively searching over `efo_edges`.
+
 
 ## Querying the database
 `src/query_database.py` contains a search function (described below) to query the `gwascatalog_search.db` database for records annotated/mapped to a user-specified set of EFO traits.
