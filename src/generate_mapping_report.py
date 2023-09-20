@@ -1,8 +1,9 @@
+import os
 import uuid
 import pandas as pd
 from owlready2 import *
 
-__version__ = "0.8.2"
+__version__ = "0.8.3"
 
 BASE_IRI = "https://computationalbiomed.hms.harvard.edu/ontology/"
 
@@ -102,7 +103,7 @@ def _create_instances(ontology, mappings_df, source_term_id_col, source_term_sec
                 source_term_secondary_id = row[source_term_secondary_id_col]
             _create_instance(ontology, ontology_term_iri, source_term, source_term_id, source_term_secondary_id)
         if save_ontology:
-            output_file = "mappings/" + ontology.name + "_mappings.owl"
+            output_file = os.path.join("..", "resources", ontology.name + "_mappings.owl")
             os.makedirs(os.path.dirname(output_file), exist_ok=True)
             ontology.save(output_file)
 

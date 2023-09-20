@@ -10,14 +10,16 @@ from metapub import PubMedFetcher
 from generate_ontology_tables import get_semsql_tables_for_ontology
 from generate_mapping_report import get_mapping_counts
 
-__version__ = "1.3.0"
+__version__ = "1.4.0"
 
-DB_RESOURCES_FOLDER = "../resources/"
+DB_RESOURCES_FOLDER = os.path.join("..", "resources")
 
-text2term_mapping_source_term_col = "SourceTerm"
-text2term_mapping_source_term_id_col = "SourceTermID"
-text2term_mapping_target_term_iri_col = "MappedTermIRI"
-text2term_mapping_score_col = "MappingScore"
+t2t_mapping_source_term_col = "SourceTerm"
+t2t_mapping_source_term_id_col = "SourceTermID"
+t2t_mapping_mapped_term_col = "MappedTermLabel"
+t2t_mapping_mapped_term_iri_col = "MappedTermIRI"
+t2t_mapping_mapped_term_curie_col = "MappedTermCURIE"
+t2t_mapping_score_col = "MappingScore"
 
 
 # Assemble a SQLite database that contains:
@@ -25,13 +27,14 @@ text2term_mapping_score_col = "MappingScore"
 # 3) SemanticSQL tables of the specified ontology that enable search by leveraging the ontology class hierarchy
 # 4) Mappings of the values in the specified column of the metadata table to terms in the specified ontology
 # 5) Counts of how many data points in the metadata were mapped—either directly or indirectly—to each ontology term
-def build_database(metadata_df, dataset_name, ontology_name,
-                   resource_col=text2term_mapping_source_term_col,
-                   resource_id_col=text2term_mapping_source_term_id_col,
-                   output_database_filepath="",
-                   ontology_term_iri_col=text2term_mapping_target_term_iri_col,
+def build_database(metadata_df, dataset_name, ontology_name, output_database_filepath="",
+                   resource_col=t2t_mapping_source_term_col,
+                   resource_id_col=t2t_mapping_source_term_id_col,
+                   ontology_term_col=t2t_mapping_mapped_term_col,
+                   ontology_term_iri_col=t2t_mapping_mapped_term_iri_col,
+                   ontology_term_curie_col=t2t_mapping_mapped_term_curie_col,
                    ontology_semsql_db_url="", ontology_url="", pmid_col="",
-                   ontology_mappings_df=None, mapping_minimum_score=0.7, mapping_base_iris=(),
+                   compute_mappings=False, ontology_mappings_df=None, mapping_minimum_score=0.7, mapping_base_iris=(),
                    include_cross_ontology_references_table=False, additional_tables=(), additional_ontologies=()):
     ontology_name = ontology_name.lower()
 
@@ -41,7 +44,7 @@ def build_database(metadata_df, dataset_name, ontology_name,
 
     # Create SQLite database
     if output_database_filepath == "":
-        output_database_filepath = "../" + dataset_name + "_search.db"
+        output_database_filepath = os.path.join("..", dataset_name + "_search.db")
     Path(output_database_filepath).touch()
     db_connection = sqlite3.connect(output_database_filepath)
 
@@ -58,7 +61,7 @@ def build_database(metadata_df, dataset_name, ontology_name,
                                include_crossrefs_table=False, primary_ontology=False)
 
     # Get details (title, abstract, journal) from PubMed about references in the specified PMID column
-    references_table_filename = DB_RESOURCES_FOLDER + dataset_name + "_references.tsv"
+    references_table_filename = os.path.join(DB_RESOURCES_FOLDER, dataset_name + "_references.tsv")
     if not os.path.isfile(references_table_filename):
         references_df = get_pubmed_details(metadata_df=metadata_df, dataset_name=dataset_name, pmid_col=pmid_col)
     else:
@@ -67,16 +70,28 @@ def build_database(metadata_df, dataset_name, ontology_name,
     import_df_to_db(db_connection, data_frame=references_df, table_name=dataset_name + "_references")
 
     # Map the values in the specified metadata table column to the specified ontology
-    if ontology_mappings_df is None:
-        ontology_mappings_df = map_metadata_to_ontologies(metadata_df=metadata_df, dataset_name=dataset_name,
-                                                          ontology_url=ontology_url, min_score=mapping_minimum_score,
-                                                          source_term_col=resource_col,
-                                                          source_term_id_col=resource_id_col,
-                                                          base_iris=mapping_base_iris)
-        resource_col = text2term_mapping_source_term_col
-        resource_id_col = text2term_mapping_source_term_id_col
-        ontology_term_iri_col = text2term_mapping_target_term_iri_col
-        ontology_mappings_df.columns = ontology_mappings_df.columns.str.replace(' ', '')
+    if ontology_mappings_df is None or compute_mappings:
+        t2t_mappings_df = map_metadata_to_ontologies(metadata_df=metadata_df, dataset_name=dataset_name,
+                                                     ontology_url=ontology_url, min_score=mapping_minimum_score,
+                                                     source_term_col=resource_col,
+                                                     source_term_id_col=resource_id_col,
+                                                     base_iris=mapping_base_iris)
+        t2t_mappings_df.columns = t2t_mappings_df.columns.str.replace(' ', '')
+        t2t_mappings_df["Source"] = "text2term"
+        if ontology_mappings_df is None:
+            resource_col = t2t_mapping_source_term_col
+            resource_id_col = t2t_mapping_source_term_id_col
+            ontology_term_iri_col = t2t_mapping_mapped_term_iri_col
+            ontology_mappings_df = t2t_mappings_df
+        else:
+            # combine t2t mappings with the given mappings table
+            t2t_mappings_df = t2t_mappings_df.rename(
+                columns={t2t_mapping_source_term_col: resource_col,
+                         t2t_mapping_source_term_id_col: resource_id_col,
+                         t2t_mapping_mapped_term_col: ontology_term_col,
+                         t2t_mapping_mapped_term_iri_col: ontology_term_iri_col,
+                         t2t_mapping_mapped_term_curie_col: ontology_term_curie_col})
+            ontology_mappings_df = pd.concat([t2t_mappings_df, ontology_mappings_df])
     import_df_to_db(db_connection, data_frame=ontology_mappings_df, table_name=dataset_name + "_mappings")
 
     # Get counts of mappings
@@ -84,13 +99,13 @@ def build_database(metadata_df, dataset_name, ontology_name,
                                    source_term_col=resource_col, save_ontology=True,
                                    source_term_id_col=resource_id_col,
                                    mapped_term_iri_col=ontology_term_iri_col)
-    counts_df.to_csv(DB_RESOURCES_FOLDER + ontology_name + "_mappings_counts.tsv", sep="\t", index=False)
+    counts_df.to_csv(os.path.join(DB_RESOURCES_FOLDER, ontology_name + "_mappings_counts.tsv"), sep="\t", index=False)
 
     # Merge the counts table with the labels table on the "IRI" column
     merged_df = pd.merge(primary_ontology_labels_df, counts_df, on="IRI")
 
     # Save the merged table to disk and add it to the database
-    merged_df.to_csv(DB_RESOURCES_FOLDER + ontology_name + "_labels.tsv", sep="\t", index=False)
+    merged_df.to_csv(os.path.join(DB_RESOURCES_FOLDER, ontology_name + "_labels.tsv"), sep="\t", index=False)
     import_df_to_db(db_connection, data_frame=merged_df, table_name=ontology_name + "_labels")
 
     # Add any additional tables given
@@ -154,7 +169,7 @@ def map_metadata_to_ontologies(metadata_df, dataset_name, ontology_url, min_scor
     mappings = text2term.map_terms(source_terms=source_terms, source_terms_ids=source_term_ids,
                                    target_ontology=ontology_url, excl_deprecated=True, save_graphs=False,
                                    max_mappings=1, min_score=min_score, save_mappings=True,
-                                   output_file=DB_RESOURCES_FOLDER + dataset_name + "_mappings.csv",
+                                   output_file=os.path.join(DB_RESOURCES_FOLDER, dataset_name + "_t2t_mappings.csv"),
                                    base_iris=base_iris)
     mappings.columns = mappings.columns.str.replace(" ", "")  # remove spaces from column names
     print(f"...done ({time.time() - start:.1f} seconds)")
@@ -173,7 +188,7 @@ def get_pubmed_details(metadata_df, dataset_name, pmid_col):
         if article_details != "":
             articles.append(article_details)
     references_df = pd.DataFrame(articles, columns=[pmid_col, 'Journal', 'Title', 'Abstract', 'Year', 'URL'])
-    references_df.to_csv(DB_RESOURCES_FOLDER + dataset_name + "_references.tsv", sep="\t", index=False)
+    references_df.to_csv(os.path.join(DB_RESOURCES_FOLDER, dataset_name + "_references.tsv"), sep="\t", index=False)
     print(f"...done ({time.time() - start:.1f} seconds)")
     return references_df
 
