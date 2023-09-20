@@ -8,19 +8,20 @@ import pandas as pd
 from datetime import datetime
 from generate_ontology_tables import get_curie_id_for_term
 
-__version__ = "0.7.1"
+__version__ = "0.8.0"
 
 # Versions of ontologies and the resulting search database
 EFO_VERSION = "3.57.0"
 UBERON_VERSION = "2023-07-25"
-SEARCH_DB_VERSION = "0.9.0"
+SEARCH_DB_VERSION = "0.10.0"
 
 # Input tables from GWAS Catalog
 GWASCATALOG_STUDIES_TABLE_URL = "https://www.ebi.ac.uk/gwas/api/search/downloads/studies_alternative"
 GWASCATALOG_ASSOCIATIONS_TABLE_URL = "https://www.ebi.ac.uk/gwas/api/search/downloads/alternative"
 
 DATASET_NAME = "gwascatalog"
-OUTPUT_DATABASE_FILEPATH = "../" + DATASET_NAME + "_search.db"
+OUTPUT_DATABASE_FILEPATH = os.path.join("..", DATASET_NAME + "_search.db")
+RESOURCES_FOLDER = os.path.join("..", "resources")
 
 # Column names of the studies metadata table
 INPUT_METADATA_STUDY_ID_COLUMN = "STUDY ACCESSION"
@@ -47,8 +48,11 @@ def download_gwascatalog_table(table_url):
         print(f"Failed to retrieve GWAS Catalog table from the URL {table_url}")
 
 
-def get_gwascatalog_studies_table():
-    gwascatalog_studies_df = download_gwascatalog_table(GWASCATALOG_STUDIES_TABLE_URL)
+def get_gwascatalog_studies_table(download_from_web=False):
+    if download_from_web:
+        gwascatalog_studies_df = download_gwascatalog_table(GWASCATALOG_STUDIES_TABLE_URL)
+    else:
+        gwascatalog_studies_df = pd.read_csv(os.path.join("..", "resources", "gwascatalog_metadata.tsv"), sep="\t")
     gwascatalog_studies_df = gwascatalog_studies_df.drop(gwascatalog_studies_df.columns[0], axis=1)
     gwascatalog_studies_df[MAPPED_TRAIT_CURIE_COLUMN] = gwascatalog_studies_df[MAPPED_TRAIT_URI_COLUMN].apply(
         get_curie_id_for_term)
@@ -57,16 +61,23 @@ def get_gwascatalog_studies_table():
     gwascatalog_studies_df = gwascatalog_studies_df.rename(
         columns={INPUT_METADATA_STUDY_ID_COLUMN: OUTPUT_DB_STUDY_ID_COLUMN,
                  INPUT_METADATA_TABLE_TRAIT_COLUMN: OUTPUT_DB_TRAIT_COLUMN})
-    gwascatalog_studies_df.to_csv("../resources/gwascatalog_metadata.tsv", sep="\t", index=False)
+    gwascatalog_studies_df.to_csv(os.path.join(RESOURCES_FOLDER, "gwascatalog_metadata.tsv"), sep="\t", index=False)
     return gwascatalog_studies_df
 
 
-def get_gwascatalog_associations_table():
-    gwascatalog_associations_df = download_gwascatalog_table(GWASCATALOG_ASSOCIATIONS_TABLE_URL)
+def get_gwascatalog_associations_table(download_from_web=False):
+    if download_from_web:
+        gwascatalog_associations_df = download_gwascatalog_table(GWASCATALOG_ASSOCIATIONS_TABLE_URL)
+    else:
+        gwascatalog_associations_df = pd.read_csv(os.path.join(RESOURCES_FOLDER, "gwascatalog_associations.tsv"),
+                                                  sep="\t", low_memory=False)
+
+    gwascatalog_associations_df = gwascatalog_associations_df.rename(
+        columns={INPUT_METADATA_STUDY_ID_COLUMN: OUTPUT_DB_STUDY_ID_COLUMN})
 
     # Reduce the table to columns of interest
     gwascatalog_associations_df = gwascatalog_associations_df[
-        ['STUDY ACCESSION', 'REGION', 'CHR_ID', 'CHR_POS', 'REPORTED GENE(S)', 'MAPPED_GENE', 'UPSTREAM_GENE_ID',
+        ['STUDY.ACCESSION', 'REGION', 'CHR_ID', 'CHR_POS', 'REPORTED GENE(S)', 'MAPPED_GENE', 'UPSTREAM_GENE_ID',
          'DOWNSTREAM_GENE_ID', 'SNP_GENE_IDS', 'UPSTREAM_GENE_DISTANCE', 'DOWNSTREAM_GENE_DISTANCE',
          'STRONGEST SNP-RISK ALLELE', 'SNPS', 'SNP_ID_CURRENT', 'RISK ALLELE FREQUENCY', 'P-VALUE', 'PVALUE_MLOG',
          'MAPPED_TRAIT', 'MAPPED_TRAIT_URI']]
@@ -74,9 +85,7 @@ def get_gwascatalog_associations_table():
     gwascatalog_associations_df[MAPPED_TRAIT_CURIE_COLUMN] = gwascatalog_associations_df['MAPPED_TRAIT_URI'].apply(
         get_curie_id_for_term)
 
-    gwascatalog_associations_df = gwascatalog_associations_df.rename(
-        columns={INPUT_METADATA_STUDY_ID_COLUMN: OUTPUT_DB_STUDY_ID_COLUMN})
-    gwascatalog_associations_df.to_csv("../resources/gwascatalog_associations.tsv", sep="\t", index=False)
+    gwascatalog_associations_df.to_csv(os.path.join(RESOURCES_FOLDER, "gwascatalog_associations.tsv"), sep="\t", index=False)
     return gwascatalog_associations_df
 
 
@@ -97,10 +106,12 @@ def get_text2term_mappings_table(metadata_df):
                             OUTPUT_DB_TRAIT_COLUMN: row[OUTPUT_DB_TRAIT_COLUMN],
                             MAPPED_TRAIT_COLUMN: row[MAPPED_TRAIT_COLUMN],
                             MAPPED_TRAIT_URI_COLUMN: iri,
-                            MAPPED_TRAIT_CURIE_COLUMN: get_curie_id_for_term(iri)}
+                            MAPPED_TRAIT_CURIE_COLUMN: get_curie_id_for_term(iri),
+                            "Tags": "None",
+                            "Source": "GWASCatalog"}
                 mappings_list.append(mappings)
     mappings_df = pd.DataFrame(mappings_list)
-    mappings_df.to_csv("../resources/gwascatalog_mappings.tsv", sep="\t", index=False)
+    mappings_df.to_csv(os.path.join(RESOURCES_FOLDER, "gwascatalog_mappings.tsv"), sep="\t", index=False)
     return mappings_df
 
 
@@ -117,18 +128,18 @@ def get_version_info_table(studies_timestamp, associations_timestamp):
 def create_tar_archive(source_file):
     base_filename = os.path.basename(source_file)
 
-    # Create a tar archive using gzip compression
+    # Create a tar archive using XZ compression
     with tarfile.open(source_file + ".tar.xz", "w:xz") as tar:
         tar.add(source_file, arcname=base_filename)
 
 
 if __name__ == "__main__":
     print("Downloading GWAS Catalog Studies table...")
-    studies_df = get_gwascatalog_studies_table()  # get studies metadata table
+    studies_df = get_gwascatalog_studies_table(download_from_web=True)  # get studies metadata table
     studies_download_timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
 
     print("Downloading GWAS Catalog Associations table...")
-    associations_df = get_gwascatalog_associations_table()  # get associations table
+    associations_df = get_gwascatalog_associations_table(download_from_web=True)  # get associations table
     associations_download_timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
 
     version_info_df = get_version_info_table(studies_download_timestamp, associations_download_timestamp)
@@ -150,15 +161,21 @@ if __name__ == "__main__":
     from build_database import build_database
     build_database(dataset_name=DATASET_NAME,
                    metadata_df=studies_df,
+                   output_database_filepath=OUTPUT_DATABASE_FILEPATH,
                    ontology_mappings_df=ontology_mappings,
+                   compute_mappings=True,
                    ontology_name="EFO",
                    ontology_url=f"http://www.ebi.ac.uk/efo/releases/v{EFO_VERSION}/efo.owl",
                    resource_col=OUTPUT_DB_TRAIT_COLUMN,
                    resource_id_col=OUTPUT_DB_STUDY_ID_COLUMN,
+                   ontology_term_col=MAPPED_TRAIT_COLUMN,
                    ontology_term_iri_col=MAPPED_TRAIT_URI_COLUMN,
+                   ontology_term_curie_col=MAPPED_TRAIT_CURIE_COLUMN,
                    pmid_col=PUBMED_ID_COLUMN,
+                   mapping_base_iris=("http://www.ebi.ac.uk/efo/", "http://purl.obolibrary.org/obo/MONDO",
+                                      "http://purl.obolibrary.org/obo/HP", "http://www.orpha.net/ORDO",
+                                      "http://purl.obolibrary.org/obo/DOID"),
                    additional_tables=extra_tables,
-                   output_database_filepath=OUTPUT_DATABASE_FILEPATH,
                    additional_ontologies=["UBERON"])
     create_tar_archive(source_file=OUTPUT_DATABASE_FILEPATH)
     print(f"Finished building database ({time.time() - start:.1f} seconds)")
