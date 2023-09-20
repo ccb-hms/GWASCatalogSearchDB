@@ -7,7 +7,7 @@ import bioregistry
 import pandas as pd
 from collections import deque
 
-__version__ = "0.10.0"
+__version__ = "0.11.4"
 
 SUBJECT_COL = "Subject"
 OBJECT_COL = "Object"
@@ -16,10 +16,13 @@ ONTOLOGY_COL = "Ontology"
 DISEASE_LOCATION_COL = "DiseaseLocation"
 IRI_PRIORITY_LIST = ["obofoundry", "default", "bioregistry"]
 
+ONTOLOGY_TABLES_OUTPUT_FOLDER = os.path.join("..", "ontology-tables")
+DATABASE_OUTPUT_FOLDER = os.path.join("..", "ontology-db")
+
 
 def get_semsql_tables_for_ontologies(ontologies,
-                                     tables_output_folder='../ontology-tables',
-                                     db_output_folder="../ontology-db",
+                                     tables_output_folder=ONTOLOGY_TABLES_OUTPUT_FOLDER,
+                                     db_output_folder=DATABASE_OUTPUT_FOLDER,
                                      save_tables=False, single_table_for_all_ontologies=False,
                                      include_disease_locations=False):
     all_edges = all_entailed_edges = all_labels = all_dbxrefs = all_synonyms = pd.DataFrame()
@@ -49,8 +52,8 @@ def get_semsql_tables_for_ontologies(ontologies,
     return all_edges, all_entailed_edges, all_labels, all_dbxrefs, all_synonyms
 
 
-def get_semsql_tables_for_ontology(ontology_url, ontology_name, tables_output_folder='../ontology-tables',
-                                   db_output_folder="../ontology-db", save_tables=False,
+def get_semsql_tables_for_ontology(ontology_url, ontology_name, tables_output_folder=ONTOLOGY_TABLES_OUTPUT_FOLDER,
+                                   db_output_folder=DATABASE_OUTPUT_FOLDER, save_tables=False,
                                    include_disease_locations=False):
     db_file = os.path.join(db_output_folder, ontology_name.lower() + ".db")
     db_gz_file = db_file + ".gz"
@@ -68,7 +71,7 @@ def get_semsql_tables_for_ontology(ontology_url, ontology_name, tables_output_fo
         _add_views(cursor)  # add database views needed for disease location retrieval
     edges_df = _get_edges_table(cursor)
     entailed_edges_df = _get_entailed_edges_table(cursor)
-    labels_df = _get_labels_table(cursor, include_disease_locations)
+    labels_df = _get_labels_table(cursor, ontology_name=ontology_name, include_disease_locations=include_disease_locations)
     dbxrefs_df = _get_db_cross_references_table(cursor)
     synonyms_df = _get_synonyms_table(cursor)
     onto_version = _get_ontology_version(cursor)
@@ -139,7 +142,7 @@ def _get_entailed_edges_table(cursor):
     return entailed_edges_df
 
 
-def _get_labels_table(cursor, include_disease_locations=False):
+def _get_labels_table(cursor, ontology_name, include_disease_locations=False):
     # Get rdfs:label statements for ontology classes that are not deprecated
     labels_query = "SELECT * FROM statements WHERE predicate='rdfs:label' AND subject IN " + \
                    "(SELECT subject FROM statements WHERE predicate='rdf:type' AND object='owl:Class') " + \
@@ -157,8 +160,8 @@ def _get_labels_table(cursor, include_disease_locations=False):
     labels_df[OBJECT_COL] = labels_df[OBJECT_COL].str.strip()
     labels_df[IRI_COL] = labels_df[SUBJECT_COL].apply(get_iri)
     if include_disease_locations:
-        labels_df[DISEASE_LOCATION_COL] = labels_df[SUBJECT_COL].apply(_get_disease_location_for_term,
-                                                                       connection=cursor.connection)
+        labels_df[DISEASE_LOCATION_COL] = labels_df[SUBJECT_COL].apply(
+            _get_disease_location_for_term, connection=cursor.connection, ontology=ontology_name)
     return labels_df
 
 
@@ -167,7 +170,7 @@ def _get_db_cross_references_table(cursor):
     db_xrefs_columns = [x[0] for x in cursor.description]
     db_xrefs_data = cursor.fetchall()
     db_xrefs = pd.DataFrame(db_xrefs_data, columns=db_xrefs_columns)
-    db_xrefs = db_xrefs.drop(columns=["stanza", "predicate", "object", "datatype", "language"])
+    db_xrefs = db_xrefs.drop(columns=["stanza", "predicate", "object", "datatype", "language", "graph"])
     db_xrefs = db_xrefs.rename(columns={'value': OBJECT_COL, 'subject': SUBJECT_COL})
     db_xrefs = db_xrefs.drop_duplicates()
     db_xrefs = db_xrefs[db_xrefs[SUBJECT_COL].str.startswith("_:") == False]  # remove blank nodes
@@ -228,12 +231,21 @@ def _get_curie(term):
         curie = curie.replace("OBO:", "obo:")
     if "NCBITAXON:" in curie:
         curie = curie.replace("NCBITAXON:", "NCBITaxon:")
+    if "ORPHANET.ORDO" in curie:
+        curie = curie.replace("ORPHANET.ORDO", "ORDO")
     return curie
 
 
-def _get_disease_locations(connection, subject, table):
+def _get_disease_locations(connection, subject, table, ontology):
+    if ontology == "EFO":
+        predicate = "EFO:0000784"
+    elif ontology == "NCIT":
+        predicate = "NCIT:R101"
+    else:
+        # default to RO:0001025 ('located in') from Relations Ontology
+        predicate = "RO:0001025"
     disease_location_query = f"SELECT object FROM {table} " \
-                             f"WHERE predicate='EFO:0000784' AND subject='{subject}'"
+                             f"WHERE predicate='{predicate}' AND subject='{subject}'"
     locations = pd.read_sql_query(disease_location_query, connection)
     locations = locations[~locations['object'].str.startswith("_")]  # remove rows where locations are blank nodes
     return locations["object"].tolist()
@@ -246,17 +258,23 @@ def _get_parents(connection, subject):
     return parents["object"].tolist()
 
 
-def _get_disease_location_for_term(subject, connection):
+def _get_disease_location_for_term(subject, connection, ontology):
     queue = deque([subject])  # Initialize a queue to perform a BFS
     while queue:
         current_term = queue.popleft()
-        locations = _get_disease_locations(connection, current_term, "owl_subclass_of_some_values_from") or \
-            _get_disease_locations(connection, current_term, "owl_subclass_of_only_values_from")
+        # first check if a location is stated in existential restrictions (most common)
+        locations = _get_disease_locations(connection, current_term, "owl_subclass_of_some_values_from", ontology)
         if locations:
             return locations[0] if len(locations) == 1 else ",".join(locations)
         else:
-            parents = [parent for parent in _get_parents(connection, current_term) if parent != "owl:Thing"]
-            queue.extend(parents)
+            # then check if a location is stated in universal restrictions
+            locations = _get_disease_locations(connection, current_term, "owl_subclass_of_only_values_from", ontology)
+            if locations:
+                return locations[0] if len(locations) == 1 else ",".join(locations)
+            else:
+                # otherwise check if a parent has a stated disease location
+                parents = [parent for parent in _get_parents(connection, current_term) if parent != "owl:Thing"]
+                queue.extend(parents)
     return pd.NA
 
 
@@ -269,4 +287,4 @@ def save_table(df, output_filename, tables_output_folder):
 
 if __name__ == "__main__":
     get_semsql_tables_for_ontologies(ontologies=["EFO", "FOODON", "NCIT"], save_tables=True,
-                                     single_table_for_all_ontologies=True)
+                                     single_table_for_all_ontologies=True, include_disease_locations=True)
