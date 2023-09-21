@@ -69,10 +69,12 @@ The database contains the tables depicted and described below.
 
 ```python
 # search for GWAS Catalog records annotated with pancreas or infectious disease
+connection = sqlite3.connect("gwascatalog.db")
+db_cursor = connection.cursor()
 resources_annotated_with_terms(db_cursor, 
                                search_terms=['EFO:0009605', 'EFO:0005741'],
                                include_subclasses=True, 
-                               direct_subclasses_only=False]
+                               direct_subclasses_only=False)
 ```
 The function parameters are:
 - `db_cursor`— cursor for database connection
@@ -80,7 +82,8 @@ The function parameters are:
 - `include_subclasses`— include resources annotated with subclasses of the given search terms,
         otherwise only resources explicitly annotated with those terms are returned
 - `direct_subclasses_only`— include only the direct subclasses of the given search terms,
-        otherwise all the resources annotated with entailed subclasses of the given terms are returned
+        otherwise all the resources annotated with inferred subclasses of the given terms are returned
+The return value is a pandas dataframe containing all of the resources annotated with the given terms.
 
 Each search term must be an EFO term specified by its compact uniform resource identifier ([CURIE](https://www.w3.org/TR/curie/)). For example `EFO:0005741` is the short form of [http://www.ebi.ac.uk/efo/EFO_0005741](http://www.ebi.ac.uk/efo/EFO_0005741).
 

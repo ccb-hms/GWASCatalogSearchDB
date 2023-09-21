@@ -32,7 +32,8 @@ def resources_annotated_with_terms(db_cursor, search_terms, include_subclasses=T
         study.`STUDY.ACCESSION`,
         study.`DISEASE.TRAIT`,
         study.MAPPED_TRAIT,
-        study.MAPPED_TRAIT_URI
+        study.MAPPED_TRAIT_URI,
+        study.MAPPED_TRAIT_CURIE
     FROM
         `gwascatalog_metadata` study
     WHERE
@@ -55,7 +56,8 @@ def resources_annotated_with_terms(db_cursor, search_terms, include_subclasses=T
                     study.`STUDY.ACCESSION`,
                     study.`DISEASE.TRAIT`,
                     study.MAPPED_TRAIT,
-                    study.MAPPED_TRAIT_URI
+                    study.MAPPED_TRAIT_URI,
+                    study.MAPPED_TRAIT_CURIE
                 FROM
                     `gwascatalog_metadata` study
                 WHERE

@@ -1,0 +1,1 @@
+from .query_database import resources_annotated_with_terms
