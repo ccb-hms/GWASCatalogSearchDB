@@ -7,7 +7,7 @@ import bioregistry
 import pandas as pd
 from collections import deque
 
-__version__ = "0.11.4"
+__version__ = "0.11.5"
 
 SUBJECT_COL = "Subject"
 OBJECT_COL = "Object"
@@ -57,13 +57,12 @@ def get_semsql_tables_for_ontology(ontology_url, ontology_name, tables_output_fo
                                    include_disease_locations=False):
     db_file = os.path.join(db_output_folder, ontology_name.lower() + ".db")
     db_gz_file = db_file + ".gz"
-    if not os.path.isfile(db_file):
-        if not os.path.exists(db_output_folder):
-            os.makedirs(db_output_folder)
-        print(f"Downloading database file for {ontology_name} from {ontology_url}...")
-        urllib.request.urlretrieve(ontology_url, db_gz_file)
-        with gzip.open(db_gz_file, "rb") as file_in, open(db_file, "wb") as file_out:
-            shutil.copyfileobj(file_in, file_out)
+    if not os.path.exists(db_output_folder):
+        os.makedirs(db_output_folder)
+    print(f"Downloading database file for {ontology_name} from {ontology_url}...")
+    urllib.request.urlretrieve(ontology_url, db_gz_file)
+    with gzip.open(db_gz_file, "rb") as file_in, open(db_file, "wb") as file_out:
+        shutil.copyfileobj(file_in, file_out)
     print(f"Generating tables for {ontology_name}...")
     conn = sqlite3.connect(db_file)
     cursor = conn.cursor()
