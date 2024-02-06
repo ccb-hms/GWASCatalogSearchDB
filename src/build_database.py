@@ -9,8 +9,9 @@ from pathlib import Path
 from metapub import PubMedFetcher
 from generate_ontology_tables import get_semsql_tables_for_ontology
 from generate_mapping_report import get_mapping_counts
+from text2term import Mapper
 
-__version__ = "1.4.0"
+__version__ = "1.4.1"
 
 DB_RESOURCES_FOLDER = os.path.join("..", "resources")
 
@@ -34,8 +35,9 @@ def build_database(metadata_df, dataset_name, ontology_name, output_database_fil
                    ontology_term_iri_col=t2t_mapping_mapped_term_iri_col,
                    ontology_term_curie_col=t2t_mapping_mapped_term_curie_col,
                    ontology_semsql_db_url="", ontology_url="", pmid_col="",
-                   compute_mappings=False, ontology_mappings_df=None, mapping_minimum_score=0.7, mapping_base_iris=(),
-                   include_cross_ontology_references_table=False, additional_tables=(), additional_ontologies=()):
+                   compute_mappings=False, ontology_mappings_df=None, mapping_minimum_score=0.7, max_mappings=3,
+                   mapping_base_iris=(), include_cross_ontology_references_table=False, additional_tables=(),
+                   additional_ontologies=()):
     ontology_name = ontology_name.lower()
 
     # Get target ontology URL from the specified ontology name
@@ -75,7 +77,8 @@ def build_database(metadata_df, dataset_name, ontology_name, output_database_fil
                                                      ontology_url=ontology_url, min_score=mapping_minimum_score,
                                                      source_term_col=resource_col,
                                                      source_term_id_col=resource_id_col,
-                                                     base_iris=mapping_base_iris)
+                                                     base_iris=mapping_base_iris,
+                                                     max_mappings=max_mappings)
         t2t_mappings_df.columns = t2t_mappings_df.columns.str.replace(' ', '')
         t2t_mappings_df["Source"] = "text2term"
         if ontology_mappings_df is None:
@@ -158,7 +161,7 @@ def import_df_to_db(connection, data_frame, table_name):
 
 # Map values in the specified metadata column to terms in the specified ontology set
 def map_metadata_to_ontologies(metadata_df, dataset_name, ontology_url, min_score, source_term_col,
-                               source_term_id_col, base_iris=()):
+                               source_term_id_col, base_iris=(), max_mappings=3):
     print(f"Mapping values in metadata column '{source_term_col}' to terms in '{ontology_url}'...")
     start = time.time()
     source_terms = metadata_df[source_term_col].tolist()
@@ -168,9 +171,9 @@ def map_metadata_to_ontologies(metadata_df, dataset_name, ontology_url, min_scor
         source_term_ids = ()
     mappings = text2term.map_terms(source_terms=source_terms, source_terms_ids=source_term_ids,
                                    target_ontology=ontology_url, excl_deprecated=True, save_graphs=False,
-                                   max_mappings=1, min_score=min_score, save_mappings=True,
+                                   max_mappings=max_mappings, min_score=min_score, save_mappings=True,
                                    output_file=os.path.join(DB_RESOURCES_FOLDER, dataset_name + "_t2t_mappings.csv"),
-                                   base_iris=base_iris)
+                                   base_iris=base_iris, mapper=Mapper.TFIDF)
     mappings.columns = mappings.columns.str.replace(" ", "")  # remove spaces from column names
     print(f"...done ({time.time() - start:.1f} seconds)")
     return mappings
