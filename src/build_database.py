@@ -11,7 +11,7 @@ from generate_ontology_tables import get_semsql_tables_for_ontology
 from generate_mapping_report import get_mapping_counts
 from text2term import Mapper
 
-__version__ = "1.4.1"
+__version__ = "1.4.2"
 
 DB_RESOURCES_FOLDER = os.path.join("..", "resources")
 
@@ -35,7 +35,7 @@ def build_database(metadata_df, dataset_name, ontology_name, output_database_fil
                    ontology_term_iri_col=t2t_mapping_mapped_term_iri_col,
                    ontology_term_curie_col=t2t_mapping_mapped_term_curie_col,
                    ontology_semsql_db_url="", ontology_url="", pmid_col="",
-                   compute_mappings=False, ontology_mappings_df=None, mapping_minimum_score=0.7, max_mappings=3,
+                   compute_mappings=False, ontology_mappings_df=None, min_mapping_score=0.7, max_mappings=3,
                    mapping_base_iris=(), include_cross_ontology_references_table=False, additional_tables=(),
                    additional_ontologies=()):
     ontology_name = ontology_name.lower()
@@ -74,7 +74,7 @@ def build_database(metadata_df, dataset_name, ontology_name, output_database_fil
     # Map the values in the specified metadata table column to the specified ontology
     if ontology_mappings_df is None or compute_mappings:
         t2t_mappings_df = map_metadata_to_ontologies(metadata_df=metadata_df, dataset_name=dataset_name,
-                                                     ontology_url=ontology_url, min_score=mapping_minimum_score,
+                                                     ontology_url=ontology_url, min_score=min_mapping_score,
                                                      source_term_col=resource_col,
                                                      source_term_id_col=resource_id_col,
                                                      base_iris=mapping_base_iris,

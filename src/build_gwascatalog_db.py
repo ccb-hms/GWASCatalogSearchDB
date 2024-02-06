@@ -8,11 +8,11 @@ import pandas as pd
 from datetime import datetime
 from generate_ontology_tables import get_curie_id_for_term
 
-__version__ = "0.8.0"
+__version__ = "0.9.0"
 
 # Versions of ontologies and the resulting search database
-EFO_VERSION = "3.57.0"
-UBERON_VERSION = "2023-07-25"
+EFO_VERSION = "3.62.0"
+UBERON_VERSION = "2024-01-18"
 SEARCH_DB_VERSION = "0.10.0"
 
 # Input tables from GWAS Catalog
@@ -30,7 +30,7 @@ PUBMED_ID_COLUMN = "PUBMEDID"
 
 # Column names of ontology mapping details in input metadata (which are also used in the output database)
 MAPPED_TRAIT_COLUMN = "MAPPED_TRAIT"
-MAPPED_TRAIT_URI_COLUMN = "MAPPED_TRAIT_URI"
+MAPPED_TRAIT_IRI_COLUMN = "MAPPED_TRAIT_URI"
 MAPPED_TRAIT_CURIE_COLUMN = "MAPPED_TRAIT_CURIE"
 
 # Column names of the output database, which are different from the input as of the latest version
@@ -54,7 +54,7 @@ def get_gwascatalog_studies_table(download_from_web=False):
     else:
         gwascatalog_studies_df = pd.read_csv(os.path.join("..", "resources", "gwascatalog_metadata.tsv"), sep="\t")
     gwascatalog_studies_df = gwascatalog_studies_df.drop(gwascatalog_studies_df.columns[0], axis=1)
-    gwascatalog_studies_df[MAPPED_TRAIT_CURIE_COLUMN] = gwascatalog_studies_df[MAPPED_TRAIT_URI_COLUMN].apply(
+    gwascatalog_studies_df[MAPPED_TRAIT_CURIE_COLUMN] = gwascatalog_studies_df[MAPPED_TRAIT_IRI_COLUMN].apply(
         get_curie_id_for_term)
 
     # In studies v1.0.2 the names of columns changed w.r.t. the previous table
@@ -92,7 +92,7 @@ def get_gwascatalog_associations_table(download_from_web=False):
 def get_text2term_mappings_table(metadata_df):
     mappings_list = []
     for _, row in metadata_df.iterrows():
-        mapped_trait_uri = row[MAPPED_TRAIT_URI_COLUMN]
+        mapped_trait_uri = row[MAPPED_TRAIT_IRI_COLUMN]
         # TODO split the comma-separated labels as well, or obtain the label for each split out IRI
         if mapped_trait_uri != "" and not pd.isna(mapped_trait_uri):
             if "," in mapped_trait_uri:
@@ -105,7 +105,7 @@ def get_text2term_mappings_table(metadata_df):
                 mappings = {OUTPUT_DB_STUDY_ID_COLUMN: row[OUTPUT_DB_STUDY_ID_COLUMN],
                             OUTPUT_DB_TRAIT_COLUMN: row[OUTPUT_DB_TRAIT_COLUMN],
                             MAPPED_TRAIT_COLUMN: row[MAPPED_TRAIT_COLUMN],
-                            MAPPED_TRAIT_URI_COLUMN: iri,
+                            MAPPED_TRAIT_IRI_COLUMN: iri,
                             MAPPED_TRAIT_CURIE_COLUMN: get_curie_id_for_term(iri),
                             "Tags": "None",
                             "Source": "GWASCatalog"}
@@ -164,12 +164,15 @@ if __name__ == "__main__":
                    output_database_filepath=OUTPUT_DATABASE_FILEPATH,
                    ontology_mappings_df=ontology_mappings,
                    compute_mappings=True,
+                   include_cross_ontology_references_table=True,
+                   min_mapping_score=0.6,
+                   max_mappings=1,
                    ontology_name="EFO",
                    ontology_url=f"http://www.ebi.ac.uk/efo/releases/v{EFO_VERSION}/efo.owl",
                    resource_col=OUTPUT_DB_TRAIT_COLUMN,
                    resource_id_col=OUTPUT_DB_STUDY_ID_COLUMN,
                    ontology_term_col=MAPPED_TRAIT_COLUMN,
-                   ontology_term_iri_col=MAPPED_TRAIT_URI_COLUMN,
+                   ontology_term_iri_col=MAPPED_TRAIT_IRI_COLUMN,
                    ontology_term_curie_col=MAPPED_TRAIT_CURIE_COLUMN,
                    pmid_col=PUBMED_ID_COLUMN,
                    mapping_base_iris=("http://www.ebi.ac.uk/efo/", "http://purl.obolibrary.org/obo/MONDO",
