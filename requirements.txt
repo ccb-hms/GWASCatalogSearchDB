@@ -1,4 +1,4 @@
-text2term==3.0.2
+text2term==4.1.1
 pandas~=2.0.1
 bioregistry~=0.10.6
 Owlready2~=0.44

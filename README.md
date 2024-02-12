@@ -6,26 +6,29 @@ This repository provides a SQLite database designed to facilitate search for GWA
 
 | Resource       | Version             | 
 |----------------|---------------------|
-| _SearchDB_     | 0.9.0               |
-| _EFO_          | 3.57.0              |
-| _UBERON_       | 2023-07-25          |
-| _Studies_      | 2023-09-09T17:13:55 |
-| _Associations_ | 2023-09-09T17:16:10 |
+| _SearchDB_     | 0.10.0              |
+| _EFO_          | 3.62.0              |
+| _UBERON_       | 2024-01-18          |
+| _Studies_      | 2024-02-06T15:02:09 |
+| _Associations_ | 2024-02-06T15:06:22 |
 
 
-## Building the database
-The database is built by running the Python module below. 
+## Using the database
 
-```python
-python3 src/build_gwascatalog_db.py
-```
-This generates a tarball `gwascatalog_search.db.tar.xz` containing the SQLite3 database `gwascatalog_search.db`. 
+The database is contained in the compressed file `gwascatalog_search.db.tar.xz`. After unpacking it, the database can be queried directly using any SQL database client.
+
+```shell
+git clone https://github.com/ccb-hms/GWASCatalogSearchDB.git  # clone the repository
+tar xf gwascatalog_search.db.tar.xz  # unpack compressed database file 
+cd GWASCatalogSearchDB/src  # change to code folder
+python3 query_database.py  # run example queries
+``` 
 
 The database contains the tables depicted and described below.
 
 ![](resources/gwascatalog_search_tables.png)
 
-- `version_info` contains the SearchDB version, ontology versions and download timestamps of the GWAS Catalog tables.
+- `version_info` contains ontology and DB versions, and download timestamps of GWAS Catalog tables.
 - `gwascatalog_metadata` contains the GWAS Catalog table [_All studies v1.0.2_](https://www.ebi.ac.uk/gwas/docs/file-downloads).
 - `gwascatalog_associations` contains some columns from the table [_All associations v1.0.2_](https://www.ebi.ac.uk/gwas/docs/file-downloads).  
 - `gwascatalog_references` contains details obtained from PubMed about the articles in the `PUBMEDID` column of the metadata table. 
@@ -68,11 +71,8 @@ The database contains the tables depicted and described below.
 `src/query_database.py` contains a search function (described below) to query the `gwascatalog_search.db` database for records annotated/mapped to a user-specified set of EFO traits.
 
 ```python
-# search for GWAS Catalog records annotated with pancreas or infectious disease
-connection = sqlite3.connect("gwascatalog.db")
-db_cursor = connection.cursor()
-resources_annotated_with_terms(db_cursor, 
-                               search_terms=['EFO:0009605', 'EFO:0005741'],
+# search for GWAS Catalog records annotated with pancreatic or infectious disease
+resources_annotated_with_terms(search_terms=['EFO:0009605', 'EFO:0005741'],
                                include_subclasses=True, 
                                direct_subclasses_only=False)
 ```
@@ -82,8 +82,7 @@ The function parameters are:
 - `include_subclasses`— include resources annotated with subclasses of the given search terms,
         otherwise only resources explicitly annotated with those terms are returned
 - `direct_subclasses_only`— include only the direct subclasses of the given search terms,
-        otherwise all the resources annotated with inferred subclasses of the given terms are returned
-The return value is a pandas dataframe containing all of the resources annotated with the given terms.
+        otherwise all the resources annotated with entailed subclasses of the given terms are returned
 
 Each search term must be an EFO term specified by its compact uniform resource identifier ([CURIE](https://www.w3.org/TR/curie/)). For example `EFO:0005741` is the short form of [http://www.ebi.ac.uk/efo/EFO_0005741](http://www.ebi.ac.uk/efo/EFO_0005741).
 
@@ -123,3 +122,13 @@ resources_annotated_with_terms(search_terms=['EFO:0009605'],
 ```
 
 **_Result = 408 records_**. The underlying query performs a lookup over the `efo_entailed_edges` table to find `Subject` terms `Sub` where `Object='EFO:0009605'`, and then returns resources mapped to any `Sub` term. Because the entailed_edges table contains all entailed parents (via reasoning) for all ontology terms, this query returns resources annotated with any term that is entailed to be a subclass of the search term.
+
+
+## Building the database
+The database can be built from scratch by running the Python module below. 
+
+```python
+python3 src/build_gwascatalog_db.py
+```
+
+This generates `gwascatalog_search.db.tar.xz` containing the SQLite3 database `gwascatalog_search.db`.
