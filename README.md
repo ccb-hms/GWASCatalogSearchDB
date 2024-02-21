@@ -67,6 +67,9 @@ The database contains the tables depicted and described below.
     So `efo_entailed_edges` contains, for a given Subject, all parent terms up to the root of the ontology. The table is called “entailed” because it potentially includes parents derived after reasoning over the ontology, which would not be surfaced by recursively searching over `efo_edges`.
 
 
+### Extracting disease locations related to EFO terms
+The disease locations contained in the DB are extracted directly from EFO statements of the form:  `X has_disease_location Y`, where Y is (typically) an UBERON term representing an anatomical location. If a term does not have an explicit `has_disease_location` relationship, we determine if it has an inferred one. This is done by recursively checking if a parent in the ontology hierarchy has such a location, until one (or none) location is found. For example, `'bronchitis' (EFO:0009661)` does not have an explicitly stated location in EFO, but it inherits one from its immediate parent _'bronchial disease'_, which has a _'has_disease_location'_ relationship to _'bronchus'_.
+
 ## Querying the database
 `src/query_database.py` contains a search function (described below) to query the `gwascatalog_search.db` database for records annotated/mapped to a user-specified set of EFO traits.
 
