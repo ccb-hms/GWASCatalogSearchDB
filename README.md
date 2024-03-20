@@ -131,7 +131,8 @@ resources_annotated_with_terms(search_terms=['EFO:0009605'],
 The database can be built from scratch by running the Python module below. 
 
 ```python
-python3 src/build_gwascatalog_db.py
+cd src
+python3 build_gwascatalog_db.py
 ```
 
 This generates `gwascatalog_search.db.tar.xz` containing the SQLite3 database `gwascatalog_search.db`.
