@@ -7,7 +7,7 @@ import bioregistry
 import pandas as pd
 from collections import deque
 
-__version__ = "0.11.5"
+__version__ = "0.11.6"
 
 SUBJECT_COL = "Subject"
 OBJECT_COL = "Object"
@@ -80,8 +80,8 @@ def get_semsql_tables_for_ontology(ontology_url, ontology_name, tables_output_fo
     conn.close()
     if save_tables:
         save_table(labels_df, ontology_name.lower() + "_labels.tsv", tables_output_folder)
-        save_table(edges_df, ontology_name.lower() + "_entailed_edges.tsv", tables_output_folder)
-        save_table(entailed_edges_df, ontology_name.lower() + "_edges.tsv", tables_output_folder)
+        save_table(edges_df, ontology_name.lower() + "_edges.tsv", tables_output_folder)
+        save_table(entailed_edges_df, ontology_name.lower() + "_entailed_edges.tsv", tables_output_folder)
         save_table(dbxrefs_df, ontology_name.lower() + "_dbxrefs.tsv", tables_output_folder)
         save_table(synonyms_df, ontology_name.lower() + "_synonyms.tsv", tables_output_folder)
     return edges_df, entailed_edges_df, labels_df, dbxrefs_df, synonyms_df, onto_version

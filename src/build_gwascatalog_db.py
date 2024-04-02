@@ -8,7 +8,10 @@ import pandas as pd
 from datetime import datetime
 from generate_ontology_tables import get_curie_id_for_term
 
-__version__ = "0.9.0"
+__version__ = "0.9.1"
+
+# Specify whether to download the newest versions of the GWAS Catalog Studies and Associations tables
+DOWNLOAD_NEWEST = True
 
 # Versions of ontologies and the resulting search database
 EFO_VERSION = "3.62.0"
@@ -48,8 +51,8 @@ def download_gwascatalog_table(table_url):
         print(f"Failed to retrieve GWAS Catalog table from the URL {table_url}")
 
 
-def get_gwascatalog_studies_table(download_from_web=False):
-    if download_from_web:
+def get_gwascatalog_studies_table(download_newest=DOWNLOAD_NEWEST):
+    if download_newest:
         gwascatalog_studies_df = download_gwascatalog_table(GWASCATALOG_STUDIES_TABLE_URL)
     else:
         gwascatalog_studies_df = pd.read_csv(os.path.join("..", "resources", "gwascatalog_metadata.tsv"), sep="\t")
@@ -65,8 +68,8 @@ def get_gwascatalog_studies_table(download_from_web=False):
     return gwascatalog_studies_df
 
 
-def get_gwascatalog_associations_table(download_from_web=False):
-    if download_from_web:
+def get_gwascatalog_associations_table(download_newest=DOWNLOAD_NEWEST):
+    if download_newest:
         gwascatalog_associations_df = download_gwascatalog_table(GWASCATALOG_ASSOCIATIONS_TABLE_URL)
     else:
         gwascatalog_associations_df = pd.read_csv(os.path.join(RESOURCES_FOLDER, "gwascatalog_associations.tsv"),
@@ -135,11 +138,11 @@ def create_tar_archive(source_file):
 
 if __name__ == "__main__":
     print("Downloading GWAS Catalog Studies table...")
-    studies_df = get_gwascatalog_studies_table(download_from_web=True)  # get studies metadata table
+    studies_df = get_gwascatalog_studies_table()  # get studies metadata table
     studies_download_timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
 
     print("Downloading GWAS Catalog Associations table...")
-    associations_df = get_gwascatalog_associations_table(download_from_web=True)  # get associations table
+    associations_df = get_gwascatalog_associations_table()  # get associations table
     associations_download_timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
 
     version_info_df = get_version_info_table(studies_download_timestamp, associations_download_timestamp)
@@ -159,15 +162,13 @@ if __name__ == "__main__":
 
     start = time.time()
     from build_database import build_database
-    build_database(dataset_name=DATASET_NAME,
-                   metadata_df=studies_df,
+    build_database(metadata_df=studies_df,
                    output_database_filepath=OUTPUT_DATABASE_FILEPATH,
                    ontology_mappings_df=ontology_mappings,
                    compute_mappings=True,
                    include_cross_ontology_references_table=True,
-                   min_mapping_score=0.6,
+                   min_mapping_score=0.1,
                    max_mappings=1,
-                   ontology_name="EFO",
                    ontology_url=f"http://www.ebi.ac.uk/efo/releases/v{EFO_VERSION}/efo.owl",
                    resource_col=OUTPUT_DB_TRAIT_COLUMN,
                    resource_id_col=OUTPUT_DB_STUDY_ID_COLUMN,
@@ -179,6 +180,7 @@ if __name__ == "__main__":
                                       "http://purl.obolibrary.org/obo/HP", "http://www.orpha.net/ORDO",
                                       "http://purl.obolibrary.org/obo/DOID"),
                    additional_tables=extra_tables,
-                   additional_ontologies=["UBERON"])
+                   additional_ontologies=["UBERON"]
+                   )
     create_tar_archive(source_file=OUTPUT_DATABASE_FILEPATH)
     print(f"Finished building database ({time.time() - start:.1f} seconds)")
