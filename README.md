@@ -66,6 +66,21 @@ The database contains the tables depicted and described below.
 
     So `efo_entailed_edges` contains, for a given Subject, all parent terms up to the root of the ontology. The table is called “entailed” because it potentially includes parents derived after reasoning over the ontology, which would not be surfaced by recursively searching over `efo_edges`.
 
+## ETL Process Overview
+We programmatically obtain two tables from [GWAS Catalog's Downloads webpage](https://www.ebi.ac.uk/gwas/docs/file-downloads): _'All studies v1.0.2'_ and _'All associations v1.0.2'_, and then we store them in our database without modification as `gwascatalog_metadata` and `gwascatalog_associations`, respectively. The first table contains details about GWAS studies registered in the GWAS Catalog, while the second contains details about the SNP-trait associations extracted from those studies. 
+
+In the `gwascatalog_metadata` table, there are sometimes multiple ontology mappings for a single study, which are represented as a comma-separated list of CURIEs in each study's row. This representation makes search over such values challenging. So, from the `gwascatalog_metadata` table, we extract all ontology mappings and with them we create another table called `gwascatalog_mappings`, where each ontology mapping is represented in its own row. The rationale behind this new table is that it can be extended to include additional mappings from different sources (as we have done in the latest version of our database), and then users can select their preferred mapping source(s) to use for search.
+
+From the `gwascatalog_metadata` we extract the PubMed ID associated with each study, and we use the [metapub](https://pypi.org/project/metapub) Python package to extract publication details such as titles, abstracts, and journal names, which we then store in the table `gwascatalog_references`.
+
+For the main ontology used to annotate traits in the GWAS Catalog, EFO, our database contains a table called `efo_labels` with details about all terms in EFO, such as their labels, identifiers, and disease locations associated with them (if available). In this table we also include the count of how many GWAS studies are directly mapped to each ontology term, and of how many studies are indirectly mapped to each term, i.e., they are mapped to a more specific term in the hierarchy. 
+
+Our database includes a tabular representation of an ontology's class hierarchy before and after reasoning, in the tables `efo_edges` and `efo_entailed_edges`, respectively. So for a particular term, we can obtain its direct, asserted parents using `efo_edges`, and we can obtain its indirect, entailed parents (i.e., ancestors) using `efo_entailed_edges`. The table `efo_synonyms` contains the potentially multiple synonyms of each EFO term. Implementation-wise, we build our tables by extracting the minimum required details from a SemanticSQL representation of EFO.
+
+Our pipeline allows the inclusion of any additional user-specified ontologies. In our case, we include the Uberon ontology so that we can obtain more details about the anatomical structures associated with (EFO) diseases. The tables included in the database for such extra ontologies are the same as for the primary annotation ontology, except that the labels table does not include disease location details or mapping counts.
+
+Finally we include a table in our database specifying the versions of the ontologies used in the pipeline, and the dates and times when the metadata tables were downloaded from the GWAS Catalog. 
+
 
 ### Extracting disease locations related to EFO terms
 The disease locations contained in the DB are extracted directly from EFO statements of the form:  `X has_disease_location Y`, where Y is (typically) an UBERON term representing an anatomical location. If a term does not have an explicit `has_disease_location` relationship, we determine if it has an inferred one. This is done by recursively checking if a parent in the ontology hierarchy has such a location, until one (or none) location is found. For example, `'bronchitis' (EFO:0009661)` does not have an explicitly stated location in EFO, but it inherits one from its immediate parent _'bronchial disease'_, which has a _'has_disease_location'_ relationship to _'bronchus'_.
